@@ -11,6 +11,12 @@
       "source": "./skills/macos-use-voice-alerts",
       "description": "Enable verbal notifications using macOS text-to-speech to alert when Claude needs attention or completes tasks",
       "version": "1.0.0"
+    },
+    {
+      "name": "setup-statusline",
+      "source": "./skills/setup-statusline",
+      "description": "Interactive wizard to configure a custom Claude Code statusline with folder, git, context bar, and last message display",
+      "version": "1.0.0"
     }
   ]
 }
