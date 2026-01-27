@@ -66,17 +66,15 @@ if [ -n "$LAST_CLAUDE_MSG" ] && [ "$LAST_CLAUDE_MSG" != "null" ]; then
 Last message: $LAST_MSG_ESCAPED..."
 fi
 
-# Show dialog with Reply/OK buttons (5 minute timeout)
+# Show alert with Continue/OK buttons (5 minute timeout)
+# Using display alert instead of display dialog for longer text support
 RESULT=$(osascript -e "
-tell application \"System Events\"
-    activate
-    set theResult to display dialog \"$MSG\" with title \"$DIALOG_TITLE\" buttons {\"Continue\", \"OK\"} default button \"OK\" giving up after 300
-    if gave up of theResult then
-        return \"TIMEOUT\"
-    else
-        return button returned of theResult
-    end if
-end tell
+set theResult to display alert \"$DIALOG_TITLE\" message \"$MSG\" buttons {\"Continue\", \"OK\"} default button \"OK\" giving up after 300
+if gave up of theResult then
+    return \"TIMEOUT\"
+else
+    return button returned of theResult
+end if
 " 2>&1)
 
 echo "$(date): User selected: $RESULT" >> "$LOG_FILE"
