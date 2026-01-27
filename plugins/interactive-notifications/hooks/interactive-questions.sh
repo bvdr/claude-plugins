@@ -19,8 +19,7 @@ echo "$INPUT" >> "$LOG_FILE"
 
 # Parse JSON input using jq
 if ! command -v jq &> /dev/null; then
-    # No jq, fall back to terminal
-    echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask"}}'
+    # No jq, fall back to terminal (exit with no output = let tool proceed)
     exit 0
 fi
 
@@ -159,9 +158,8 @@ end tell
 " 2>&1)
     fi
 
-    # Handle timeout/cancel - fall back to terminal
+    # Handle timeout/cancel - fall back to terminal (no output = let tool proceed normally)
     if [[ "$RESULT" == "TIMEOUT" ]] || [[ "$RESULT" == "CANCELLED" ]] || [[ -z "$RESULT" ]]; then
-        echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"ask"}}'
         exit 0
     fi
 
@@ -179,15 +177,12 @@ RESPONSES="$RESPONSES}"
 
 echo "$(date): Final responses: $RESPONSES" >> "$LOG_FILE"
 
-# Return the answer by denying the tool and providing the selection as context
-# Claude will see this and understand the user's choice
+# Return the answers in a format Claude can use
+# We block the tool but provide the answers so Claude doesn't need to ask again
 cat << EOF
 {
-  "hookSpecificOutput": {
-    "hookEventName": "PreToolUse",
-    "permissionDecision": "deny",
-    "permissionDecisionReason": "User answered via dialog: $RESPONSES"
-  }
+  "decision": "block",
+  "reason": "User already answered via macOS dialog. Answers: $RESPONSES"
 }
 EOF
 
