@@ -70,32 +70,27 @@ if command -v jq &> /dev/null; then
                 continue
             fi
 
-            # Build options for dialog (max 3 buttons, use list for more)
-            if [ "$NUM_OPTIONS" -le 3 ]; then
-                BUTTON_LIST=""
+            # Build options for dialog (max 2 buttons + Other, use list for more)
+            if [ "$NUM_OPTIONS" -le 2 ]; then
+                # Use buttons: options + Other
+                BUTTON_LIST="\"Other\""
                 for ((j=NUM_OPTIONS-1; j>=0; j--)); do
                     LABEL=$(echo "$OPTIONS" | jq -r ".[$j].label // \"Option $((j+1))\"" | head -c 20)
-                    if [ -n "$BUTTON_LIST" ]; then
-                        BUTTON_LIST="$BUTTON_LIST, "
-                    fi
-                    BUTTON_LIST="$BUTTON_LIST\"$LABEL\""
+                    BUTTON_LIST="$BUTTON_LIST, \"$LABEL\""
                 done
 
                 DEFAULT_LABEL=$(echo "$OPTIONS" | jq -r '.[0].label // "Option 1"' | head -c 20)
 
                 RESULT=$(osascript -e "
-tell application \"System Events\"
-    activate
-    set theResult to display dialog \"$QUESTION_TEXT\" with title \"Claude [$FOLDER_PATH]: $HEADER\" buttons {$BUTTON_LIST} default button \"$DEFAULT_LABEL\" giving up after 300
-    if gave up of theResult then
-        return \"TIMEOUT\"
-    else
-        return button returned of theResult
-    end if
-end tell
+set theResult to display alert \"Claude [$FOLDER_PATH]: $HEADER\" message \"$QUESTION_TEXT\" buttons {$BUTTON_LIST} default button \"$DEFAULT_LABEL\" giving up after 300
+if gave up of theResult then
+    return \"TIMEOUT\"
+else
+    return button returned of theResult
+end if
 " 2>&1)
             else
-                # Use list for 4+ options
+                # Use list for 3+ options, add Other at the end
                 LIST_ITEMS=""
                 for ((j=0; j<NUM_OPTIONS; j++)); do
                     LABEL=$(echo "$OPTIONS" | jq -r ".[$j].label // \"Option $((j+1))\"")
@@ -104,6 +99,7 @@ end tell
                     fi
                     LIST_ITEMS="$LIST_ITEMS\"$LABEL\""
                 done
+                LIST_ITEMS="$LIST_ITEMS, \"Other (custom answer)\""
 
                 RESULT=$(osascript -e "
 tell application \"System Events\"
@@ -113,6 +109,23 @@ tell application \"System Events\"
         return \"CANCELLED\"
     else
         return item 1 of chosenItem
+    end if
+end tell
+" 2>&1)
+            fi
+
+            # Handle "Other" - show text input for custom answer
+            if [[ "$RESULT" == "Other" ]] || [[ "$RESULT" == "Other (custom answer)" ]]; then
+                RESULT=$(osascript -e "
+tell application \"System Events\"
+    activate
+    set userReply to display dialog \"Enter your custom answer:\" with title \"Claude [$FOLDER_PATH]: $HEADER\" default answer \"\" buttons {\"Cancel\", \"OK\"} default button \"OK\" giving up after 300
+    if gave up of userReply then
+        return \"TIMEOUT\"
+    else if button returned of userReply is \"Cancel\" then
+        return \"CANCELLED\"
+    else
+        return text returned of userReply
     end if
 end tell
 " 2>&1)
