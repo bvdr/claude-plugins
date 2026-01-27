@@ -1,0 +1,9 @@
+{
+  "name": "macos-use-voice-alerts",
+  "version": "1.0.0",
+  "description": "Enable verbal notifications using macOS text-to-speech to alert when Claude needs attention or completes tasks",
+  "author": {
+    "name": "Bogdan Dragomirescu",
+    "url": "https://github.com/bvdr"
+  }
+}

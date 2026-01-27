@@ -4,12 +4,18 @@
     "name": "Bogdan Dragomirescu",
     "url": "https://github.com/bvdr"
   },
-  "description": "Custom Claude Code commands for macOS productivity and development workflows",
+  "description": "Custom Claude Code plugins for macOS productivity and development workflows",
   "plugins": [
     {
-      "name": "bvdr",
-      "source": "./plugins/bvdr",
-      "description": "bvdr's Claude Code utilities - statusline wizard and more",
+      "name": "setup-statusline",
+      "source": "./plugins/setup-statusline",
+      "description": "Interactive wizard to configure a custom Claude Code statusline with folder, git, context bar, and last message display",
+      "version": "1.0.0"
+    },
+    {
+      "name": "macos-use-voice-alerts",
+      "source": "./plugins/macos-use-voice-alerts",
+      "description": "Enable verbal notifications using macOS text-to-speech to alert when Claude needs attention or completes tasks",
       "version": "1.0.0"
     },
     {
