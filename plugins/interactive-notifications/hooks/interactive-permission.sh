@@ -9,9 +9,23 @@
 #
 
 LOG_FILE="$HOME/.claude/hooks/permission.log"
+DEBUG_LOG="$HOME/.claude/hooks/debug.log"
+
+# Generate unique ID for this hook call
+HOOK_ID="$$-$(date +%s%N)"
 
 # Read JSON input from stdin
 INPUT=$(cat)
+
+# Detailed debug logging
+echo "========================================" >> "$DEBUG_LOG"
+echo "$(date): HOOK CALL START - ID: $HOOK_ID" >> "$DEBUG_LOG"
+echo "Script: $0" >> "$DEBUG_LOG"
+echo "CLAUDE_PLUGIN_ROOT: ${CLAUDE_PLUGIN_ROOT:-not set}" >> "$DEBUG_LOG"
+echo "PWD: $(pwd)" >> "$DEBUG_LOG"
+echo "INPUT JSON:" >> "$DEBUG_LOG"
+echo "$INPUT" | head -c 500 >> "$DEBUG_LOG"
+echo "" >> "$DEBUG_LOG"
 
 # Log for debugging
 echo "$(date): Received permission request" >> "$LOG_FILE"
@@ -22,8 +36,11 @@ if command -v jq &> /dev/null; then
     CWD=$(echo "$INPUT" | jq -r '.cwd // ""')
     TRANSCRIPT_PATH=$(echo "$INPUT" | jq -r '.transcript_path // ""')
 
+    echo "$(date): HOOK $HOOK_ID - Tool: $TOOL_NAME" >> "$DEBUG_LOG"
+
     # Handle AskUserQuestion - collect answers via dialog and inject via updatedInput
     if [ "$TOOL_NAME" = "AskUserQuestion" ]; then
+        echo "$(date): HOOK $HOOK_ID - Handling AskUserQuestion" >> "$DEBUG_LOG"
         FOLDER_PATH=$(echo "$CWD" | awk -F'/' '{
             n = NF
             if (n >= 3) print "../" $(n-2) "/" $(n-1) "/" $n
@@ -240,12 +257,16 @@ fi
 
 # Map user choice to Claude Code decision
 if [[ "$RESULT" == *"Yes"* ]]; then
+    echo "$(date): HOOK $HOOK_ID - Returning allow" >> "$DEBUG_LOG"
     echo '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}'
 elif [[ "$RESULT" == *"No"* ]]; then
+    echo "$(date): HOOK $HOOK_ID - Returning deny" >> "$DEBUG_LOG"
     echo '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"deny","message":"User denied via dialog"}}}'
 else
     # Timeout or error - fall back to terminal prompt
+    echo "$(date): HOOK $HOOK_ID - Returning ask (fallback)" >> "$DEBUG_LOG"
     echo '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"ask"}}}'
 fi
 
+echo "$(date): HOOK $HOOK_ID - COMPLETE" >> "$DEBUG_LOG"
 exit 0
