@@ -58,13 +58,12 @@ fi
 
 # Build dialog
 DIALOG_TITLE="Claude Done: $FOLDER_PATH"
-MSG="Claude has finished responding."
 
 if [ -n "$LAST_CLAUDE_MSG" ] && [ "$LAST_CLAUDE_MSG" != "null" ]; then
-    LAST_MSG_ESCAPED=$(echo "$LAST_CLAUDE_MSG" | sed 's/\\/\\\\/g; s/"/\\"/g' | head -c 120)
-    MSG="$MSG
-
-Last message: $LAST_MSG_ESCAPED..."
+    # No truncation - display alert handles long text
+    MSG=$(echo "$LAST_CLAUDE_MSG" | sed 's/\\/\\\\/g; s/"/\\"/g')
+else
+    MSG="Claude has finished responding."
 fi
 
 # Show alert with Continue/OK buttons (5 minute timeout)
