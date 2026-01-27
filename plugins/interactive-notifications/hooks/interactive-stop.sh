@@ -46,28 +46,40 @@ fi
 
 # Try to get Claude's last text message from transcript
 LAST_CLAUDE_MSG=""
+echo "$(date): DEBUG transcript_path=$TRANSCRIPT_PATH" >> "$LOG_FILE"
+
 if [ -n "$TRANSCRIPT_PATH" ] && [ -f "$TRANSCRIPT_PATH" ]; then
-    # Look through recent assistant messages to find one with text content
-    LAST_CLAUDE_MSG=$(tail -100 "$TRANSCRIPT_PATH" 2>/dev/null | \
-        grep '"type":"assistant"' | \
-        tac | \
-        while read line; do
-            TEXT=$(echo "$line" | jq -r '.message.content[] | select(.type=="text") | .text' 2>/dev/null)
-            if [ -n "$TEXT" ] && [ "$TEXT" != "null" ]; then
-                echo "$TEXT"
-                break
-            fi
-        done | \
-        head -c 2000 | \
-        tr '\n' ' ')
+    echo "$(date): DEBUG transcript file exists" >> "$LOG_FILE"
+
+    # Get the most recent assistant message line (searching backwards)
+    LAST_ASSISTANT_LINE=$(tac "$TRANSCRIPT_PATH" 2>/dev/null | grep -m 1 '"type":"assistant"')
+    echo "$(date): DEBUG last_assistant_line length=${#LAST_ASSISTANT_LINE}" >> "$LOG_FILE"
+
+    if [ -n "$LAST_ASSISTANT_LINE" ]; then
+        # Extract all text content blocks and join them
+        # Handles both array content and edge cases
+        LAST_CLAUDE_MSG=$(echo "$LAST_ASSISTANT_LINE" | jq -r '
+            .message.content // [] |
+            if type == "array" then
+                [.[] | select(.type=="text") | .text] | join("\n\n")
+            elif type == "string" then
+                .
+            else
+                ""
+            end
+        ' 2>/dev/null)
+        echo "$(date): DEBUG extracted_msg length=${#LAST_CLAUDE_MSG}" >> "$LOG_FILE"
+    fi
+else
+    echo "$(date): DEBUG transcript file NOT found or path empty" >> "$LOG_FILE"
 fi
 
 # Build dialog
 DIALOG_TITLE="Claude Done: $FOLDER_PATH"
 
-if [ -n "$LAST_CLAUDE_MSG" ] && [ "$LAST_CLAUDE_MSG" != "null" ]; then
-    # No truncation - display alert handles long text
-    MSG=$(echo "$LAST_CLAUDE_MSG" | sed 's/\\/\\\\/g; s/"/\\"/g')
+if [ -n "$LAST_CLAUDE_MSG" ] && [ "$LAST_CLAUDE_MSG" != "null" ] && [ "$LAST_CLAUDE_MSG" != "" ]; then
+    # Escape for AppleScript: backslashes, quotes, and preserve newlines
+    MSG=$(printf '%s' "$LAST_CLAUDE_MSG" | sed 's/\\/\\\\/g; s/"/\\"/g')
 else
     MSG="Claude has finished responding."
 fi
