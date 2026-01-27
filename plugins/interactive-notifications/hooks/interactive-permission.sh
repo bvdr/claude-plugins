@@ -160,13 +160,13 @@ EOF
     # Extract relevant info based on tool type
     case "$TOOL_NAME" in
         "Bash")
-            DETAIL=$(echo "$INPUT" | jq -r '.tool_input.command // ""' | head -c 200)
+            DETAIL=$(echo "$INPUT" | jq -r '.tool_input.command // ""')
             ;;
         "Write"|"Edit"|"Read")
             DETAIL=$(echo "$INPUT" | jq -r '.tool_input.file_path // ""')
             ;;
         *)
-            DETAIL=$(echo "$INPUT" | jq -r '.tool_input | tostring' 2>/dev/null | head -c 150)
+            DETAIL=$(echo "$INPUT" | jq -r '.tool_input | tostring' 2>/dev/null)
             ;;
     esac
 else
@@ -195,7 +195,6 @@ if [ -n "$TRANSCRIPT_PATH" ] && [ -f "$TRANSCRIPT_PATH" ]; then
         grep '"type":"human"' | \
         tail -1 | \
         jq -r '.message.content // "" | if type == "array" then .[0].text // "" else . end' 2>/dev/null | \
-        head -c 100 | \
         tr '\n' ' ')
 fi
 
@@ -206,7 +205,7 @@ DIALOG_TITLE="Claude: $FOLDER_PATH"
 MSG="Tool: $TOOL_NAME"
 
 if [ -n "$DETAIL" ] && [ "$DETAIL" != "null" ]; then
-    DETAIL_ESCAPED=$(echo "$DETAIL" | sed 's/\\/\\\\/g; s/"/\\"/g' | head -c 200)
+    DETAIL_ESCAPED=$(echo "$DETAIL" | sed 's/\\/\\\\/g; s/"/\\"/g')
     MSG="$MSG
 
 $DETAIL_ESCAPED"
@@ -214,11 +213,11 @@ fi
 
 # Add last message context if available
 if [ -n "$LAST_MESSAGE" ] && [ "$LAST_MESSAGE" != "null" ]; then
-    LAST_MSG_ESCAPED=$(echo "$LAST_MESSAGE" | sed 's/\\/\\\\/g; s/"/\\"/g' | head -c 80)
+    LAST_MSG_ESCAPED=$(echo "$LAST_MESSAGE" | sed 's/\\/\\\\/g; s/"/\\"/g')
     MSG="$MSG
 
 ---
-Task: $LAST_MSG_ESCAPED..."
+Task: $LAST_MSG_ESCAPED"
 fi
 
 # Show alert with Yes/No/Reply buttons (5 minute timeout = 300 seconds)
