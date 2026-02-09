@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Layer 1: Fast deterministic permission rules (~5ms)
-# Returns allow/deny for known-safe/known-dangerous operations.
-# No output (passthrough) for anything ambiguous — let Layer 2 or normal dialog handle it.
+# Layer 1: Fast deterministic auto-allow rules (~5ms)
+# Returns allow for known-safe operations.
+# No output (passthrough) for everything else — Layer 2 AI or normal dialog handles it.
+# Layer 1 never denies — the user always gets the final say via dialog.
 
 set -euo pipefail
 
@@ -16,12 +17,6 @@ TOOL_INPUT=$(echo "$INPUT" | jq -r '.tool_input // "{}"')
 allow() {
   local reason="$1"
   echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\",\"permissionDecisionReason\":\"$reason\"}}"
-  exit 0
-}
-
-deny() {
-  local reason="$1"
-  echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"$reason\"}}"
   exit 0
 }
 
@@ -75,68 +70,6 @@ fi
 
 # Strip leading whitespace for pattern matching
 COMMAND_TRIMMED=$(echo "$COMMAND" | sed 's/^[[:space:]]*//')
-
-# --- Auto-DENY patterns (check these first — safety critical) ---
-
-# rm -rf on root, home, or system paths
-# Only deny rm targeting actual dangerous paths — bare / (root), ~, $HOME, or system directories
-# Normal absolute paths like /tmp/file are fine
-if echo "$COMMAND" | grep -qE 'rm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+|(-[a-zA-Z]*\s+)*)(\/\s|\/$|~|\/~|\$HOME|\/System|\/usr|\/var|\/etc|\/bin|\/sbin|\/Library)\b'; then
-  debug_log "DENY tool=Bash cmd='$COMMAND' (dangerous rm)"
-  deny "Dangerous rm command targeting system/root paths"
-fi
-
-# sudo / su
-if echo "$COMMAND_TRIMMED" | grep -qE '^(sudo|su)\b'; then
-  debug_log "DENY tool=Bash cmd='$COMMAND' (sudo/su)"
-  deny "Elevated privileges not allowed: sudo/su"
-fi
-
-# Piping remote scripts to shell (curl|bash, wget|sh, etc.)
-if echo "$COMMAND" | grep -qE '(curl|wget)\s.*\|\s*(bash|sh|zsh|dash)'; then
-  debug_log "DENY tool=Bash cmd='$COMMAND' (pipe to shell)"
-  deny "Piping remote content to shell is dangerous"
-fi
-
-# chmod 777 or broad chmod -R on system paths
-if echo "$COMMAND" | grep -qE 'chmod\s+777'; then
-  debug_log "DENY tool=Bash cmd='$COMMAND' (chmod 777)"
-  deny "chmod 777 is overly permissive"
-fi
-if echo "$COMMAND" | grep -qE 'chmod\s+-R\s.*\s(\/|\/usr|\/var|\/etc|\/System)'; then
-  debug_log "DENY tool=Bash cmd='$COMMAND' (recursive chmod on system path)"
-  deny "Recursive chmod on system paths"
-fi
-
-# dd writing to raw devices
-if echo "$COMMAND" | grep -qE 'dd\s+.*of=/dev/'; then
-  debug_log "DENY tool=Bash cmd='$COMMAND' (dd to device)"
-  deny "Writing directly to block devices with dd"
-fi
-
-# mkfs (formatting filesystems)
-if echo "$COMMAND" | grep -qE '\bmkfs\b'; then
-  debug_log "DENY tool=Bash cmd='$COMMAND' (mkfs)"
-  deny "Filesystem formatting not allowed"
-fi
-
-# Fork bombs
-if echo "$COMMAND" | grep -qE ':\(\)\{.*\|.*\}|\.%0\|\.'; then
-  debug_log "DENY tool=Bash cmd='$COMMAND' (fork bomb)"
-  deny "Fork bomb detected"
-fi
-
-# Network configuration tools
-if echo "$COMMAND" | grep -qE '\b(networksetup|iptables|ufw)\b'; then
-  debug_log "DENY tool=Bash cmd='$COMMAND' (network config)"
-  deny "Network configuration changes not allowed"
-fi
-
-# Modifying sensitive directories
-if echo "$COMMAND" | grep -qE '(>|>>|cp\s|mv\s|rm\s|chmod\s|chown\s).*~/\.(ssh|gnupg)'; then
-  debug_log "DENY tool=Bash cmd='$COMMAND' (sensitive dotfiles)"
-  deny "Modifying ~/.ssh or ~/.gnupg not allowed"
-fi
 
 # --- Auto-ALLOW patterns ---
 
