@@ -111,8 +111,9 @@ if [[ "$FIRST_LINE" == "ALLOW" ]]; then
   echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PermissionRequest\",\"decision\":{\"behavior\":\"allow\",\"message\":\"AI: $REASON_ESCAPED\"}}}"
   exit 0
 elif [[ "$FIRST_LINE" == "DENY" ]]; then
-  log "DECISION: DENY — $REASON"
-  echo "{\"hookSpecificOutput\":{\"hookEventName\":\"PermissionRequest\",\"decision\":{\"behavior\":\"deny\",\"message\":\"AI: $REASON_ESCAPED\"}}}"
+  # AI recommends denying, but let the user make the final call.
+  # No output = normal permission dialog appears so user can decide.
+  log "DECISION: DENY (passthrough to user) — $REASON"
   exit 0
 else
   # AI response wasn't clear — fail open to normal dialog
