@@ -79,7 +79,9 @@ COMMAND_TRIMMED=$(echo "$COMMAND" | sed 's/^[[:space:]]*//')
 # --- Auto-DENY patterns (check these first — safety critical) ---
 
 # rm -rf on root, home, or system paths
-if echo "$COMMAND" | grep -qE 'rm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+|(-[a-zA-Z]*\s+)*)(\/|~|\$HOME|\/System|\/usr|\/var|\/etc|\/bin|\/sbin|\/Library)\b'; then
+# Only deny rm targeting actual dangerous paths — bare / (root), ~, $HOME, or system directories
+# Normal absolute paths like /tmp/file are fine
+if echo "$COMMAND" | grep -qE 'rm\s+(-[a-zA-Z]*f[a-zA-Z]*\s+|(-[a-zA-Z]*\s+)*)(\/\s|\/$|~|\/~|\$HOME|\/System|\/usr|\/var|\/etc|\/bin|\/sbin|\/Library)\b'; then
   debug_log "DENY tool=Bash cmd='$COMMAND' (dangerous rm)"
   deny "Dangerous rm command targeting system/root paths"
 fi
