@@ -163,6 +163,12 @@ if echo "$COMMAND_TRIMMED" | grep -qE '^gh\b'; then
   allow "GitHub CLI command"
 fi
 
+# claude CLI — plugin management, config, etc.
+if echo "$COMMAND_TRIMMED" | grep -qE '^claude\b'; then
+  debug_log "ALLOW tool=Bash cmd='$COMMAND' (claude cli)"
+  allow "Claude CLI command"
+fi
+
 # Testing frameworks
 if echo "$COMMAND_TRIMMED" | grep -qE '^(npm\s+test|npx\s+(jest|vitest|mocha)|yarn\s+test|pnpm\s+test|pytest|python\s+-m\s+pytest|cargo\s+test|go\s+test|make\s+test|bundle\s+exec\s+rspec|phpunit|php\s+artisan\s+test)\b'; then
   debug_log "ALLOW tool=Bash cmd='$COMMAND' (testing)"
