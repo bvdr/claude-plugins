@@ -1,253 +1,172 @@
-# Claude Plugins by bvdr
+# Claude Code Plugins by Bogdan Dragomir
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-compatible-blueviolet)](https://claude.com/claude-code)
 
-A curated collection of custom Claude Code plugins and skills for macOS productivity, development workflows, and automation.
-
-## Table of Contents
-
-- [Installation](#installation)
-- [Plugins](#plugins)
-- [Skills](#skills)
-- [Usage](#usage)
-- [Contributing](#contributing)
-- [Resources](#resources)
-- [License](#license)
+A curated collection of Claude Code plugins for macOS productivity, development workflows, and automation.
 
 ---
 
-## Installation
+## Quick Start
 
-### Option 1: Add as Plugin Marketplace (Recommended)
-
-Add this repository as a plugin marketplace in Claude Code:
+Add the marketplace and install any plugin:
 
 ```bash
 /plugin marketplace add bvdr/claude-plugins
-```
-
-Then install individual plugins:
-
-```bash
-/plugin install interactive-notifications@bvdr
-/plugin install macos-use-voice-alerts@bvdr
-```
-
-### Option 2: Clone and Use Locally
-
-```bash
-# Clone the repository
-git clone https://github.com/bvdr/claude-plugins.git
-
-# Start Claude Code with the plugin directory
-claude --plugin-dir ./claude-plugins
-```
-
-### Option 3: Add to Settings (Auto-Install)
-
-Add to your `~/.claude/settings.json`:
-
-```json
-{
-  "extraKnownMarketplaces": {
-    "bvdr": {
-      "source": {
-        "source": "github",
-        "repo": "bvdr/claude-plugins"
-      }
-    }
-  },
-  "enabledPlugins": {
-    "interactive-notifications@bvdr": true,
-    "macos-use-voice-alerts@bvdr": true
-  }
-}
+/plugin install <plugin-name>@bvdr
 ```
 
 ---
 
 ## Plugins
 
-| Plugin | Description | Platform |
-|--------|-------------|----------|
-| [interactive-notifications](#interactive-notifications) | macOS dialogs for permissions, questions, idle alerts, and completion | macOS |
+### [Smart Permissions](plugins/smart-permissions)
+
+AI-powered permission hook that auto-approves safe operations and auto-denies dangerous ones.
+
+- **Layer 1**: Fast deterministic regex rules (~5ms) — no LLM involved
+- **Layer 2**: Claude Haiku fallback for ambiguous cases (~8-10s)
+- Composes with interactive-notifications as a fallback
+
+```bash
+/plugin install smart-permissions@bvdr
+```
+
+**Platform:** macOS, Linux | **Requires:** `jq`, `claude` CLI (optional for Layer 2)
 
 ---
 
-### interactive-notifications
+### [Interactive Notifications](plugins/interactive-notifications)
 
 Respond to Claude Code from anywhere on your Mac via native macOS dialogs — no need to switch to the terminal.
 
-**Install:**
+- Permission dialogs with Yes / No / Reply buttons
+- Question dialogs with buttons or selectable lists
+- Idle alerts and task completion notifications
+- Shows folder path, tool details, and your last request
+
 ```bash
 /plugin install interactive-notifications@bvdr
 ```
 
-**Features:**
-
-| Hook | Trigger | Buttons |
-|------|---------|---------|
-| Permission Requests | Claude asks for permission | Reply / No / Yes |
-| Questions | Claude asks you a question | Clickable options |
-| Idle Alert | Claude waiting 60s+ | Reply / OK |
-| Completion | Claude finishes task | Continue / OK |
-
-**Dialog shows:**
-- Folder path (last 3 directories)
-- Tool/command details
-- Your last request for context
-
-**Buttons:**
-- **Yes** — Approve action
-- **No** — Deny action
-- **Reply** — Type a custom message
-- **Continue** — Type follow-up to keep Claude working
-- **OK** — Acknowledge and dismiss
-
-**Requirements:**
-- macOS (uses native `osascript` dialogs)
-- `jq` for JSON parsing (`brew install jq`)
-
-**Timeout:** 5 minutes (falls back to terminal if no response)
+**Platform:** macOS | **Requires:** `jq`
 
 ---
 
-## Skills
+### [Voice Alerts](plugins/macos-use-voice-alerts)
 
-| Skill | Description | Platform |
-|-------|-------------|----------|
-| [macos-use-voice-alerts](#macos-use-voice-alerts) | Enable verbal notifications using macOS text-to-speech | macOS |
-| [setup-statusline](#setup-statusline) | Interactive wizard to configure a custom statusline | macOS, Linux |
+Verbal notifications using macOS text-to-speech when Claude needs attention or completes tasks.
 
----
-
-### macos-use-voice-alerts
-
-Enable verbal notifications using macOS text-to-speech to alert when Claude needs human intervention or completes a task.
-
-**Invoke:**
-```
-/macos-use-voice-alerts
-```
-
-**With custom voice:**
-```
-/macos-use-voice-alerts Zarvox
-```
-
-**Features:**
-- Announces questions before asking
-- Alerts when permissions are needed
-- Notifies on task completion
-- Warns about errors and blockers
-- Persists for entire session until `/clear`
-
-**Popular Voice Options:**
-
-| Voice | Style | Use Case |
-|-------|-------|----------|
-| `Zarvox` | Robotic | Fun, classic sci-fi feel |
-| `Whisper` | Quiet | Discrete, subtle notifications |
-| `Good News` | Upbeat | Positive task completions |
-| `Bad News` | Ominous | Error notifications |
-| `Jester` | Comedic | Playful interactions |
-| `Samantha` | Natural | Professional settings |
-
----
-
-### setup-statusline
-
-Interactive wizard to configure a custom Claude Code statusline with folder display, git info, context bar, and last message.
-
-**Invoke:**
-```
-/setup-statusline
-```
-
-**Configuration options:**
-- **Folder**: Last folder only / Last 2 folders / Full path / Hidden
-- **Color**: Blue / Orange / Green / Gray
-- **Git**: Full status / Branch only / No git info
-- **Last message**: Show your last prompt on second line
-
-**Example output:**
-```
-📁myproject | 🔀main (2 files uncommitted, synced) | [███░░░░░░░] 15% of 200k tokens used
-💬 Can you check if the edd license plugin is enabled...
-```
-
-**Features:**
-- Visual context bar showing token usage
-- Git branch with uncommitted count and sync status
-- Second line shows your last message for easy conversation identification
-- Color-coded with customizable accent colors
-- Automatically updates `settings.json`
-
-**Requirements:**
-- `jq` for JSON parsing
-- `git` for branch info (optional)
-
----
-
-## Usage
-
-### Installing Plugins
+- Announces permission requests, questions, idle prompts, and completion
+- Customizable voice (Zarvox, Whisper, Samantha, etc.)
+- No restart needed — hooks take effect immediately
 
 ```bash
-/plugin install <plugin-name>@bvdr
+/plugin install macos-use-voice-alerts@bvdr
 ```
 
-### Invoking Skills
+After installing, invoke: `/enable-voice-alerts`
 
-```
-/<skill-name> [arguments]
-```
+**Platform:** macOS
 
-### Checking Available Plugins/Skills
+---
 
-```
-/plugin list
-/skill list
-```
+### [Setup Statusline](plugins/setup-statusline)
 
-### Discovering Voices (macOS)
+Interactive wizard to configure a custom Claude Code statusline.
 
-To see all available text-to-speech voices on your system:
+- Folder display, git branch info, token usage bar
+- Customizable accent colors
+- Second line showing your last message
 
 ```bash
-say -v "?"
+/plugin install setup-statusline@bvdr
+```
+
+After installing, invoke: `/setup-statusline`
+
+**Platform:** macOS, Linux | **Requires:** `jq`, `git` (optional)
+
+---
+
+## Development
+
+### Clone the Repository
+
+```bash
+git clone https://github.com/bvdr/claude-plugins.git
+cd claude-plugins
+```
+
+### Install the Marketplace Locally
+
+Add the local directory as a marketplace in your `~/.claude/settings.json`:
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "bvdr": {
+      "source": {
+        "source": "local",
+        "path": "/path/to/claude-plugins"
+      }
+    }
+  }
+}
+```
+
+### Install a Plugin Directly from Local Files
+
+```bash
+claude plugins add /path/to/claude-plugins/plugins/<plugin-name>
+```
+
+### Test Hook Scripts
+
+```bash
+# Pipe JSON input to test hooks directly
+echo '{"tool_name":"Bash","cwd":"/path","tool_input":{"command":"ls"}}' | bash plugins/interactive-notifications/hooks/interactive-permission.sh
+
+# View debug logs
+tail -f ~/.claude/hooks/debug.log
+tail -f ~/.claude/hooks/permission.log
+tail -f ~/.claude/hooks/smart-permissions.log
+```
+
+### Repository Structure
+
+```
+plugins/
+├── smart-permissions/          # AI-powered auto-allow/deny hook
+│   ├── hooks/                  # Bash scripts for PreToolUse + PermissionRequest
+│   ├── permission-policy.md    # Customizable AI evaluation rules
+│   └── manifest.json
+├── interactive-notifications/  # Native macOS dialogs
+│   ├── hooks/                  # Bash scripts for permissions, questions, idle, stop
+│   └── manifest.json
+├── macos-use-voice-alerts/     # Text-to-speech notifications
+│   ├── commands/               # Skill markdown
+│   └── .claude-plugin/
+└── setup-statusline/           # Statusline configuration wizard
+    ├── commands/               # Skill markdown
+    └── .claude-plugin/
 ```
 
 ---
 
 ## Contributing
 
-Contributions are welcome! To add a new plugin or skill:
+Contributions are welcome! To add a new plugin:
 
 1. Fork this repository
-2. Create a new directory under `plugins/` or `skills/`
-3. Add required files (manifest.json, hooks, etc.)
-4. Update the `marketplace.json` with your entry
-5. Update this README with documentation
-6. Submit a pull request
-
----
-
-## Resources
-
-- [Claude Code Documentation](https://code.claude.com/docs)
-- [Creating Skills Guide](https://code.claude.com/docs/en/skills)
-- [Hooks Reference](https://code.claude.com/docs/en/hooks)
-- [Plugin Marketplaces](https://code.claude.com/docs/en/plugin-marketplaces)
+2. Create a new directory under `plugins/`
+3. Add required files (`manifest.json` or `.claude-plugin/plugin.json`, hooks, commands)
+4. Update this README with documentation
+5. Submit a pull request
 
 ---
 
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
-
----
-
-Made with Claude Code
