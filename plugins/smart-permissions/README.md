@@ -1,33 +1,37 @@
-# smart-permissions
+# Smart Permissions
 
 AI-powered permission hook for Claude Code that auto-approves safe operations and auto-denies dangerous ones, reducing manual permission prompts.
+
+## Installation
+
+```bash
+/plugin install smart-permissions@bvdr
+```
+
+> Requires the `bvdr` marketplace. Add it first if you haven't:
+> ```bash
+> /plugin marketplace add bvdr/claude-plugins
+> ```
 
 ## Architecture
 
 Two-layer system designed for speed and safety:
 
 ### Layer 1 — PreToolUse (fast, ~5ms)
+
 Deterministic bash regex rules that run on every tool call. No LLM involved.
+
 - **Always-allow**: Read-only tools (Read, Glob, Grep, etc.), safe bash commands (ls, git, npm test, etc.)
 - **Always-deny**: Dangerous operations (rm -rf /, sudo, curl|bash, etc.)
 - **Passthrough**: Anything ambiguous produces no output, falling through to Layer 2
 
 ### Layer 2 — PermissionRequest (slow, ~8-10s)
+
 AI fallback using Claude Haiku. Only fires when Layer 1 didn't decide and a permission dialog would appear anyway.
+
 - Loads `permission-policy.md` as the evaluation ruleset
 - Fail-open: if anything breaks (missing deps, timeout, parse error), shows normal dialog
 - Recursion-safe: guards against infinite loops via env checks
-
-## Installation
-
-```bash
-claude plugins add ~/gits/bvdr/claude-plugins --path plugins/smart-permissions
-```
-
-## Requirements
-
-- `jq` — JSON parsing (required for both layers)
-- `claude` CLI — AI evaluation in Layer 2 (optional; Layer 1 works without it)
 
 ## What Gets Auto-Allowed (Layer 1)
 
@@ -70,15 +74,20 @@ Layer 1 logging (high frequency — gated behind env var):
 export SMART_PERMISSIONS_DEBUG=1
 ```
 
-Layer 2 logging (low frequency — always on). Log path follows your Claude config directory:
+Layer 2 logging (low frequency — always on):
 ```bash
-# Default profile
 tail -f ~/.claude/hooks/smart-permissions.log
-
-# Custom profile (e.g. ~/.claude-work)
-tail -f ~/.claude-work/hooks/smart-permissions.log
 ```
 
 ## Compatibility
 
 Composes with `interactive-notifications`: smart-permissions runs first. If it decides (allow/deny), the event is resolved. If it passes through, interactive-notifications shows the macOS dialog as fallback.
+
+## Requirements
+
+- `jq` for JSON parsing (required for both layers)
+- `claude` CLI for AI evaluation in Layer 2 (optional; Layer 1 works without it)
+
+## License
+
+MIT
