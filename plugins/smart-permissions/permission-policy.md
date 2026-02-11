@@ -56,6 +56,11 @@ Respond with EXACTLY one word: **ALLOW** or **DENY**, followed by a brief reason
 - Sending file contents to unknown external URLs
 - Base64-encoding and transmitting sensitive files
 
+### Workflow Transitions
+- Any command that transitions from planning to implementation (e.g. plan → work, "/work", starting implementation after a plan review)
+- Skill invocations or commands that begin executing a plan or starting work based on a plan
+- These are decision points that ALWAYS require explicit user confirmation — never auto-allow
+
 ## Guidance for Ambiguous Cases
 
 When the command doesn't clearly fit GREEN or RED:
