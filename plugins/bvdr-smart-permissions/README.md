@@ -35,7 +35,7 @@ AI fallback using Claude Haiku. Only fires when Layer 1 didn't decide and a perm
 
 ## What Gets Auto-Allowed (Layer 1)
 
-**Tools**: Read, Glob, Grep, WebSearch, WebFetch, LS, ListDirectory, TodoRead, TaskList, TaskGet, TaskCreate, TaskUpdate, ToolSearch, AskUserQuestion
+**Tools**: Read, Glob, Grep, WebSearch, WebFetch, LS, ListDirectory, TodoRead, TaskList, TaskGet, TaskCreate, TaskUpdate, ToolSearch, EnterPlanMode
 
 **Bash commands**:
 - Read-only: `ls`, `cat`, `head`, `tail`, `wc`, `file`, `which`, `pwd`, `date`, `echo`, `stat`, `tree`, `du`, `df`
@@ -87,6 +87,18 @@ Composes with `interactive-notifications`: smart-permissions runs first. If it d
 
 - `jq` for JSON parsing (required for both layers)
 - `claude` CLI for AI evaluation in Layer 2 (optional; Layer 1 works without it)
+
+## Changelog
+
+### v1.2.0
+- Removed `ExitPlanMode` from auto-allow list — plan execution now requires explicit user approval via Layer 2
+
+### v1.1.0
+- Added debug logging for evaluated commands
+- Fixed `AskUserQuestion` being auto-approved (must always reach the user)
+
+### v1.0.0
+- Initial release: two-layer permission system (deterministic rules + AI fallback)
 
 ## License
 

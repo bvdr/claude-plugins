@@ -45,7 +45,7 @@ debug_log() {
 
 # Tools that are always safe — read-only or informational
 # AskUserQuestion is intentionally excluded — it must always reach the user so they can respond
-ALWAYS_ALLOW_TOOLS="Read Glob Grep WebSearch WebFetch LS ListDirectory TodoRead TaskList TaskGet TaskCreate TaskUpdate ToolSearch ListMcpResourcesTool ReadMcpResourceTool EnterPlanMode ExitPlanMode"
+ALWAYS_ALLOW_TOOLS="Read Glob Grep WebSearch WebFetch LS ListDirectory TodoRead TaskList TaskGet TaskCreate TaskUpdate ToolSearch ListMcpResourcesTool ReadMcpResourceTool EnterPlanMode"
 
 for safe_tool in $ALWAYS_ALLOW_TOOLS; do
   if [[ "$TOOL_NAME" == "$safe_tool" ]]; then
