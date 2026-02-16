@@ -7,33 +7,21 @@
   "description": "Custom Claude Code plugins for macOS productivity and development workflows",
   "plugins": [
     {
-      "name": "setup-statusline",
-      "source": "./plugins/setup-statusline",
-      "description": "Interactive wizard to configure a custom Claude Code statusline with folder, git, context bar, and last message display",
+      "name": "bvdr",
+      "source": "./plugins/bvdr",
+      "description": "Claude Code skills collection: Slack notifications, statusline setup, voice alerts, and more",
       "version": "1.0.0"
     },
     {
-      "name": "macos-use-voice-alerts",
-      "source": "./plugins/macos-use-voice-alerts",
-      "description": "Enable verbal notifications using macOS text-to-speech to alert when Claude needs attention or completes tasks",
-      "version": "1.0.0"
-    },
-    {
-      "name": "interactive-notifications",
-      "source": "./plugins/interactive-notifications",
+      "name": "bvdr-interactive-notifications",
+      "source": "./plugins/bvdr-interactive-notifications",
       "description": "macOS interactive dialogs for Claude Code permissions and questions - respond from anywhere without switching to terminal",
       "version": "1.0.0"
     },
     {
-      "name": "smart-permissions",
-      "source": "./plugins/smart-permissions",
+      "name": "bvdr-smart-permissions",
+      "source": "./plugins/bvdr-smart-permissions",
       "description": "AI-powered permission hook that auto-approves safe operations and auto-denies dangerous ones",
-      "version": "1.0.0"
-    },
-    {
-      "name": "slack-notifications",
-      "source": "./plugins/slack-notifications",
-      "description": "Send rich Slack notifications from Claude Code via a Bot OAuth token with Block Kit formatting",
       "version": "1.0.0"
     }
   ]

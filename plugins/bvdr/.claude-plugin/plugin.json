@@ -1,0 +1,9 @@
+{
+  "name": "bvdr",
+  "version": "1.0.0",
+  "description": "Claude Code skills collection: Slack notifications, statusline setup, voice alerts, and more",
+  "author": {
+    "name": "Bogdan Dragomirescu",
+    "url": "https://github.com/bvdr"
+  }
+}
