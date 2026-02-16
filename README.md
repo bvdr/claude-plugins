@@ -21,7 +21,9 @@ Add the marketplace and install any plugin:
 
 ## Plugins
 
-### [Smart Permissions](plugins/smart-permissions)
+### Hook Plugins
+
+#### [Smart Permissions](plugins/bvdr-smart-permissions)
 
 AI-powered permission hook that auto-approves safe operations and auto-denies dangerous ones.
 
@@ -30,14 +32,14 @@ AI-powered permission hook that auto-approves safe operations and auto-denies da
 - Composes with interactive-notifications as a fallback
 
 ```bash
-/plugin install smart-permissions@bvdr
+/plugin install bvdr-smart-permissions@bvdr
 ```
 
 **Platform:** macOS, Linux | **Requires:** `jq`, `claude` CLI (optional for Layer 2)
 
 ---
 
-### [Interactive Notifications](plugins/interactive-notifications)
+#### [Interactive Notifications](plugins/bvdr-interactive-notifications)
 
 Respond to Claude Code from anywhere on your Mac via native macOS dialogs — no need to switch to the terminal.
 
@@ -47,46 +49,33 @@ Respond to Claude Code from anywhere on your Mac via native macOS dialogs — no
 - Shows folder path, tool details, and your last request
 
 ```bash
-/plugin install interactive-notifications@bvdr
+/plugin install bvdr-interactive-notifications@bvdr
 ```
 
 **Platform:** macOS | **Requires:** `jq`
 
 ---
 
-### [Voice Alerts](plugins/macos-use-voice-alerts)
+### Skills Plugin
 
-Verbal notifications using macOS text-to-speech when Claude needs attention or completes tasks.
+#### [bvdr](plugins/bvdr)
 
-- Announces permission requests, questions, idle prompts, and completion
-- Customizable voice (Zarvox, Whisper, Samantha, etc.)
-- No restart needed — hooks take effect immediately
+A collection of Claude Code skills for macOS productivity and Slack integration.
 
 ```bash
-/plugin install macos-use-voice-alerts@bvdr
+/plugin install bvdr@bvdr
 ```
 
-After installing, invoke: `/enable-voice-alerts`
+**Included skills:**
 
-**Platform:** macOS
+| Skill | Command | Description |
+|-------|---------|-------------|
+| Voice Alerts | `/bvdr:enable-voice-alerts` | Verbal notifications using macOS text-to-speech when Claude needs attention or completes tasks |
+| Setup Statusline | `/bvdr:setup-statusline` | Interactive wizard to configure a custom Claude Code statusline (folder display, git info, colors) |
+| Setup Slack Notifications | `/bvdr:setup-slack-notifications` | Interactive setup wizard for creating a Slack bot and configuring your environment |
+| Send Slack Notification | `/bvdr:send-slack-notification` | Send rich Slack messages with Block Kit formatting (text, code blocks, headers, status updates) |
 
----
-
-### [Setup Statusline](plugins/setup-statusline)
-
-Interactive wizard to configure a custom Claude Code statusline.
-
-- Folder display, git branch info, token usage bar
-- Customizable accent colors
-- Second line showing your last message
-
-```bash
-/plugin install setup-statusline@bvdr
-```
-
-After installing, invoke: `/setup-statusline`
-
-**Platform:** macOS, Linux | **Requires:** `jq`, `git` (optional)
+**Platform:** macOS | **Requires:** `jq`, `git` (optional for statusline)
 
 ---
 
@@ -126,7 +115,7 @@ claude plugins add /path/to/claude-plugins/plugins/<plugin-name>
 
 ```bash
 # Pipe JSON input to test hooks directly
-echo '{"tool_name":"Bash","cwd":"/path","tool_input":{"command":"ls"}}' | bash plugins/interactive-notifications/hooks/interactive-permission.sh
+echo '{"tool_name":"Bash","cwd":"/path","tool_input":{"command":"ls"}}' | bash plugins/bvdr-interactive-notifications/hooks/interactive-permission.sh
 
 # View debug logs
 tail -f ~/.claude/hooks/debug.log
@@ -138,18 +127,19 @@ tail -f ~/.claude/hooks/smart-permissions.log
 
 ```
 plugins/
-├── smart-permissions/          # AI-powered auto-allow/deny hook
-│   ├── hooks/                  # Bash scripts for PreToolUse + PermissionRequest
-│   ├── permission-policy.md    # Customizable AI evaluation rules
+├── bvdr-smart-permissions/        # AI-powered auto-allow/deny hook
+│   ├── hooks/                     # Bash scripts for PreToolUse + PermissionRequest
+│   ├── permission-policy.md       # Customizable AI evaluation rules
 │   └── manifest.json
-├── interactive-notifications/  # Native macOS dialogs
-│   ├── hooks/                  # Bash scripts for permissions, questions, idle, stop
+├── bvdr-interactive-notifications/ # Native macOS dialogs
+│   ├── hooks/                     # Bash scripts for permissions, questions, idle, stop
 │   └── manifest.json
-├── macos-use-voice-alerts/     # Text-to-speech notifications
-│   ├── commands/               # Skill markdown
-│   └── .claude-plugin/
-└── setup-statusline/           # Statusline configuration wizard
-    ├── commands/               # Skill markdown
+└── bvdr/                          # Skills collection
+    ├── commands/                  # Skill markdown files
+    │   ├── enable-voice-alerts.md
+    │   ├── setup-statusline.md
+    │   ├── setup-slack-notifications.md
+    │   └── send-slack-notification.md
     └── .claude-plugin/
 ```
 

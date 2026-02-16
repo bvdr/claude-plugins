@@ -13,19 +13,19 @@ A collection of Claude Code plugins and skills for macOS productivity. Contains 
 
 ```
 plugins/
-├── interactive-notifications/     # Native macOS dialogs for permissions/questions
+├── bvdr-smart-permissions/        # AI-powered auto-allow/deny permission hook
+│   └── hooks/                     # PreToolUse + PermissionRequest scripts
+├── bvdr-interactive-notifications/ # Native macOS dialogs for permissions/questions
 │   └── hooks/                     # Bash scripts invoked by Claude Code hooks
-├── macos-use-voice-alerts/        # Text-to-speech notifications skill
-│   └── commands/                  # Skill markdown files
-└── setup-statusline/              # Statusline configuration wizard skill
-    └── commands/
+└── bvdr/                          # Skills collection (voice alerts, statusline, Slack)
+    └── commands/                  # Skill markdown files
 ```
 
 ## Development Commands
 
 ```bash
 # Test hook scripts directly (pipe JSON input)
-echo '{"tool_name":"Bash","cwd":"/path","tool_input":{"command":"ls"}}' | bash plugins/interactive-notifications/hooks/interactive-permission.sh
+echo '{"tool_name":"Bash","cwd":"/path","tool_input":{"command":"ls"}}' | bash plugins/bvdr-interactive-notifications/hooks/interactive-permission.sh
 
 # View debug logs
 tail -f ~/.claude/hooks/debug.log
@@ -104,6 +104,10 @@ Claude Code Event → Hook Script (stdin: JSON) → AppleScript Dialog → JSON 
 2. Define procedural instructions for Claude to follow
 3. Register in plugin's `.claude-plugin/plugin.json`
 4. Skills can use `AskUserQuestion` tool for interactive configuration
+
+## Important: Keep README.md in Sync
+
+When adding, removing, or renaming plugins/skills, always update the root `README.md` to reflect the changes. This includes the plugin listings, install commands, skills table, and repository structure section.
 
 ## Testing
 
