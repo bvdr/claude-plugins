@@ -29,6 +29,12 @@
       "source": "./plugins/smart-permissions",
       "description": "AI-powered permission hook that auto-approves safe operations and auto-denies dangerous ones",
       "version": "1.0.0"
+    },
+    {
+      "name": "slack-notifications",
+      "source": "./plugins/slack-notifications",
+      "description": "Send rich Slack notifications from Claude Code via a Bot OAuth token with Block Kit formatting",
+      "version": "1.0.0"
     }
   ]
 }

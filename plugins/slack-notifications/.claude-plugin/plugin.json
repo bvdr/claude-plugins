@@ -1,0 +1,9 @@
+{
+  "name": "slack-notifications",
+  "version": "1.0.0",
+  "description": "Send rich Slack notifications from Claude Code via a Bot OAuth token with Block Kit formatting",
+  "author": {
+    "name": "Bogdan Dragomirescu",
+    "url": "https://github.com/bvdr"
+  }
+}
