@@ -51,7 +51,13 @@ TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // "Unknown"')
 TOOL_INPUT=$(echo "$INPUT" | jq -c '.tool_input // {}')
 CWD=$(echo "$INPUT" | jq -r '.cwd // "unknown"')
 
-log "Evaluating: tool=$TOOL_NAME cwd=$CWD"
+# Show the command being evaluated for easier debugging
+if [[ "$TOOL_NAME" == "Bash" ]]; then
+  COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // ""')
+  log "Evaluating: tool=$TOOL_NAME cwd=$CWD command=$COMMAND"
+else
+  log "Evaluating: tool=$TOOL_NAME cwd=$CWD input=$TOOL_INPUT"
+fi
 
 # AskUserQuestion must always reach the user — never auto-decide
 if [[ "$TOOL_NAME" == "AskUserQuestion" ]]; then
