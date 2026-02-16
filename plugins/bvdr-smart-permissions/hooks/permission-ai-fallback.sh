@@ -53,6 +53,12 @@ CWD=$(echo "$INPUT" | jq -r '.cwd // "unknown"')
 
 log "Evaluating: tool=$TOOL_NAME cwd=$CWD"
 
+# AskUserQuestion must always reach the user — never auto-decide
+if [[ "$TOOL_NAME" == "AskUserQuestion" ]]; then
+  log "PASSTHROUGH: AskUserQuestion always needs user interaction"
+  exit 0
+fi
+
 # --- Load permission policy ---
 PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 POLICY_FILE="$PLUGIN_DIR/permission-policy.md"
