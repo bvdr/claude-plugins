@@ -90,6 +90,9 @@ Composes with `interactive-notifications`: smart-permissions runs first. If it d
 
 ## Changelog
 
+### v1.3.0
+- Compact Layer 2 logs for Write/Edit — log only file path instead of full content
+
 ### v1.2.0
 - Removed `ExitPlanMode` from auto-allow list — plan execution now requires explicit user approval via Layer 2
 

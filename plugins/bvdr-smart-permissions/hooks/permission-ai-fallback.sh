@@ -55,6 +55,10 @@ CWD=$(echo "$INPUT" | jq -r '.cwd // "unknown"')
 if [[ "$TOOL_NAME" == "Bash" ]]; then
   COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // ""')
   log "Evaluating: tool=$TOOL_NAME cwd=$CWD command=$COMMAND"
+elif [[ "$TOOL_NAME" == "Write" || "$TOOL_NAME" == "Edit" ]]; then
+  # Log just the file path — the full old_string/new_string content is too verbose
+  FILE_PATH=$(echo "$TOOL_INPUT" | jq -r '.file_path // ""')
+  log "Evaluating: tool=$TOOL_NAME cwd=$CWD file=$FILE_PATH"
 else
   log "Evaluating: tool=$TOOL_NAME cwd=$CWD input=$TOOL_INPUT"
 fi
