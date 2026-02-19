@@ -23,6 +23,12 @@
       "source": "./plugins/bvdr-smart-permissions",
       "description": "AI-powered permission hook that auto-approves safe operations and auto-denies dangerous ones",
       "version": "1.4.0"
+    },
+    {
+      "name": "bvdr-nightshift",
+      "source": "./plugins/bvdr-nightshift",
+      "description": "Autonomous overnight codebase audit. Dispatches parallel agents for security, dependencies, code quality, updates, architecture, tests, docs, performance, and project health.",
+      "version": "1.0.0"
     }
   ]
 }

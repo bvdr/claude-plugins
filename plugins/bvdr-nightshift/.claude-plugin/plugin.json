@@ -1,0 +1,9 @@
+{
+  "name": "bvdr-nightshift",
+  "version": "1.0.0",
+  "description": "Autonomous overnight codebase audit agent. Run /night-shift to dispatch parallel auditors analyzing security, dependencies, code quality, framework updates, architecture, test coverage, documentation drift, performance, and project health. Produces a dashboard report with trend tracking, Slack summary, and Notion tasks.",
+  "author": {
+    "name": "Bogdan Dragomirescu",
+    "url": "https://github.com/bvdr"
+  }
+}
