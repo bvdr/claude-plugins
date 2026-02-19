@@ -242,7 +242,7 @@ Not all 9 domains apply to every project. Use this relevance logic:
 | 03-code-quality | Yes | Never skip |
 | 04-framework-updates | Only if a framework is detected | Skip if `frameworks` object has zero `true` values |
 | 05-architecture | Yes | Never skip |
-| 06-test-coverage | Only if testing tools detected | Skip if `testing` object has zero `true` values AND no test directories found |
+| 06-test-coverage | Yes | Never skip (runs lighter analysis if no testing tools detected) |
 | 07-docs-drift | Yes | Never skip |
 | 08-performance | Yes | Never skip |
 | 09-project-health | Yes | Never skip |
@@ -253,9 +253,9 @@ For skipped domains, record them with reason for the report.
 
 ## Phase 6: Dispatch Parallel Domain Agents
 
-This is the core of the operation. For EACH applicable domain, dispatch a Task agent using `run_in_background: true` on a Bash tool call. All applicable agents MUST be dispatched in a single message to maximize parallelism.
+This is the core of the operation. For EACH applicable domain, dispatch a background agent using the **Task tool** with `run_in_background: true`. All applicable agents MUST be dispatched in a single message to maximize parallelism.
 
-Each agent is dispatched by creating a Task (using TaskCreate) with the following structure:
+Each agent is dispatched using the **Task tool** (NOT TaskCreate — that's for task lists) with the following structure:
 
 ### Agent Task Description Template
 
@@ -322,6 +322,12 @@ Use `{DOMAIN_SLUG}-{NNN}` where NNN starts at 001 and increments. Examples: `sec
 - **high**: Significant issue that should be fixed soon. Major vulnerabilities, breaking changes, severe tech debt.
 - **medium**: Notable issue worth addressing. Moderate risk, code smells, missing best practices.
 - **low**: Minor improvement opportunity. Style issues, optional optimizations, nice-to-haves.
+
+### Effort Estimation Guide
+- **trivial**: One-line fix, config change, or adding an entry to .gitignore
+- **small**: Single-file change, adding a missing check or test, updating a dependency version
+- **medium**: Multi-file change, refactoring a function, adding a new test suite, fixing an architectural issue
+- **large**: Architectural change, major refactor, replacing a dependency, rewriting a subsystem
 
 ### Urgency/Importance Definitions
 - **urgent**: Needs attention within 24-48 hours. Time-sensitive. Could escalate if ignored.

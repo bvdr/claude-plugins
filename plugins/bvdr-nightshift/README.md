@@ -62,12 +62,12 @@ Project: my-app | Stack: Node, TypeScript, React, Next.js | Duration: 12m 34s | 
 
 | Domain        | Status | Findings | Trend |
 |---------------|--------|----------|-------|
-| Security      | ✅     | 0        | →     |
-| Dependencies  | ⚠️     | 3        | ↓     |
-| Code Quality  | ⚠️     | 14       | ↓     |
+| Security      | 🟢     | 0        | →     |
+| Dependencies  | 🟡     | 3        | ↓     |
+| Code Quality  | 🟡     | 14       | ↓     |
 | ...           | ...    | ...      | ...   |
 
-Total: 24 findings (was 28, improving ↓)
+Total: 24 findings (was 28, ↓ fewer)
 ```
 
 ## Trend Tracking

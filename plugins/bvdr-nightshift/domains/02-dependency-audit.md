@@ -48,6 +48,24 @@ Fallback: `python -m pip_audit --format=json 2>/dev/null`
 bundle audit check 2>/dev/null
 ```
 
+### Go (if `STACK_PROFILE.languages.go == true`)
+```bash
+govulncheck ./... 2>/dev/null
+```
+Fallback if `govulncheck` not installed:
+```bash
+go list -m -json all 2>/dev/null
+```
+Then use WebSearch to check known CVEs for major dependencies.
+
+### Rust (if `STACK_PROFILE.languages.rust == true`)
+```bash
+cargo audit 2>/dev/null
+```
+
+### Java (if `STACK_PROFILE.languages.java == true`)
+Note: Automated CVE scanning for Java requires external tools (OWASP Dependency-Check, Snyk). If none are available, check `pom.xml` or `build.gradle` for known-vulnerable versions of common libraries (Log4j, Spring, Jackson) via WebSearch.
+
 For each CVE found with severity high or critical, use WebSearch to get details:
 - Search: `{CVE-ID} {package-name} severity fix`
 - Include CVE ID, description, and fix version in finding

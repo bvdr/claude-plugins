@@ -25,9 +25,19 @@ Grep for SQL patterns:
 ```
 
 ### Run EXPLAIN on complex queries
+
+**First, detect database credentials** from project config files:
+- WordPress: parse `wp-config.php` for `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_HOST`
+- Laravel/PHP: parse `.env` for `DB_DATABASE`, `DB_USERNAME`, `DB_PASSWORD`, `DB_HOST`
+- Node: parse `.env` for `DATABASE_URL` or similar
+- Python/Django: parse `settings.py` for `DATABASES` dict
+- If a MySQL socket file is found: `find /tmp -name 'mysqld.sock' 2>/dev/null` or check config for socket path
+
+If credentials cannot be determined, **skip EXPLAIN checks** and note: "Database credentials not detected — skipping EXPLAIN analysis."
+
 For queries with JOINs or subqueries found in source, construct and run `EXPLAIN`:
 ```bash
-mysql --socket="{socket}" -u root -proot {db} -e "EXPLAIN {query}" 2>/dev/null
+mysql --socket="{socket}" -u {user} -p{password} {db} -e "EXPLAIN {query}" 2>/dev/null
 ```
 Look for:
 - `type: ALL` (full table scan): **high**
@@ -36,7 +46,7 @@ Look for:
 
 ### Check for missing indexes
 ```bash
-mysql --socket="{socket}" -u root -proot {db} -e "SHOW INDEX FROM {table}" 2>/dev/null
+mysql --socket="{socket}" -u {user} -p{password} {db} -e "SHOW INDEX FROM {table}" 2>/dev/null
 ```
 Cross-reference with columns used in WHERE/JOIN clauses.
 
