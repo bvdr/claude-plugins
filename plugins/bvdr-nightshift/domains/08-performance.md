@@ -11,6 +11,9 @@
 
 Always applicable. Database checks only if DB access is available.
 
+## Context Budget Reminder
+Prioritize checks 1-2 (database performance, N+1 queries) — highest impact. Skip EXPLAIN analysis if credentials are complex to extract. For check 4 (large assets), a single Bash `find` is enough. Skip checks 6-8 if running low on context. Use Grep with `head_limit: 10`.
+
 ---
 
 ## Check 1: Database Performance

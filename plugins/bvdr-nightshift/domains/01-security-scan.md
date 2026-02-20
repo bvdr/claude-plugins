@@ -11,6 +11,9 @@
 
 Always applicable. Every project has security concerns. Gate checks by `STACK_PROFILE` — only run language/framework-specific checks for detected stacks.
 
+## Context Budget Reminder
+Run checks 1-3 first (secrets, SQL injection, XSS) — these are highest impact. Only proceed to checks 4-8 if you still have context budget remaining. Use Grep with `head_limit: 10` for each pattern. Do not read entire files — grep for the pattern and use context lines (-C 3) instead.
+
 ## Pre-Scan Setup
 
 Exclude these paths globally: `node_modules`, `vendor`, `.git`, `dist`, `build`, `__pycache__`, `.tox`, `.venv`, `venv`, `.next`, `.nuxt`, `coverage`, `.cache`, `storage/framework`

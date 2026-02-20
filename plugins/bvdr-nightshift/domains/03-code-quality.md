@@ -11,6 +11,9 @@
 
 Always applicable. Adapt checks to detected languages.
 
+## Context Budget Reminder
+Prioritize checks 1 (linter) and 4 (complexity) — these give highest signal. For dead code detection (check 2), sample at most 20 functions, not 100. Skip check 3 (duplication) if running low on context. Use Grep with `head_limit: 10` and never read full files to "explore".
+
 ---
 
 ## Check 1: Linter Violations

@@ -106,6 +106,20 @@ Night Shift works on any codebase. It detects your stack automatically and adapt
 - Checks framework-specific patterns (WordPress, Laravel, Django, etc.)
 - Falls back gracefully when tools aren't installed
 
+## Changelog
+
+### v1.1.0 — Context Budget Fix
+
+Fixed all 9 audit agents running out of context on large codebases (e.g. WordPress with many plugins).
+
+**Changes:**
+- Added **context budget constraints** to agent prompts: max 15 file reads, max 10 findings, grep with `head_limit: 20`, sampling caps
+- Added **`max_turns: 30`** to agent dispatch — hard cap prevents agents from spiraling into endless file reads
+- Changed agent type from `general-purpose` to **`Explore`** — lighter agent with fewer tool definitions, saving context for actual analysis
+- Set agent model to **`sonnet`** — faster and uses less context per turn
+- **Condensed output schema** in agent prompts from ~80 lines to ~15 lines
+- Added **Context Budget Reminders** to the 3 largest domain files (security, code-quality, performance) with check prioritization guidance
+
 ## Configuration
 
 No configuration needed. The plugin works out of the box. Optional integrations (Slack, Notion) require their respective skills to be set up independently.

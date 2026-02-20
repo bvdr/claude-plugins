@@ -1,7 +1,7 @@
 {
   "name": "bvdr",
   "owner": {
-    "name": "Bogdan Dragomirescu",
+    "name": "Bogdan Dragomir",
     "url": "https://github.com/bvdr"
   },
   "description": "Custom Claude Code plugins for macOS productivity and development workflows",
@@ -28,7 +28,7 @@
       "name": "bvdr-nightshift",
       "source": "./plugins/bvdr-nightshift",
       "description": "Autonomous overnight codebase audit. Dispatches parallel agents for security, dependencies, code quality, updates, architecture, tests, docs, performance, and project health.",
-      "version": "1.0.0"
+      "version": "1.1.0"
     }
   ]
 }

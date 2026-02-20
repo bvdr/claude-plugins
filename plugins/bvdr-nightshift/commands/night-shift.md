@@ -266,82 +266,41 @@ You are a Night Shift domain auditor for: {DOMAIN_NAME}
 
 ## Your Mission
 Audit the codebase at `{PROJECT_ROOT}` for the domain: {DOMAIN_NAME}.
-Return your findings as a JSON array following the exact schema below.
+Return your findings as a JSON array.
 
-## Stack Profile
-{STACK_PROFILE as JSON}
+## CONTEXT BUDGET — CRITICAL
+You have a LIMITED context window. Exceeding it kills your audit. Follow these rules strictly:
 
-## Stack Summary
-{STACK_SUMMARY}
+1. **Max 15 file reads total.** Use Grep to search, not Read to browse. Never read a file just to "explore".
+2. **Grep with limits.** Always use `head_limit: 20` on Grep calls. Never return unlimited results.
+3. **Max 10 findings.** Stop after 10. Prioritize critical > high > medium. Skip low unless nothing else found.
+4. **Sampling.** For checks that say "scan all files", sample at most 30 files using Glob then Grep.
+5. **Evidence brevity.** Keep evidence under 200 characters. A file path + line number is often enough.
+6. **No Bash for file search.** Use Glob/Grep tools instead of `find` or `grep` commands.
+7. **Skip irrelevant stack checks.** If the stack profile says a language is false, skip ALL checks for it immediately.
+8. **Finish early.** Once you have solid findings, stop. Don't hunt for more.
+
+## Stack Summary: {STACK_SUMMARY}
+## Stack Profile: {STACK_PROFILE as compact single-line JSON}
 
 ## Domain Instructions
 {Full contents of the domain instruction file}
 
-## Output Format — CRITICAL
-You MUST return your findings as a SINGLE JSON code block. No other output format is accepted.
-The JSON must be a valid array of finding objects. If you have zero findings, return an empty array `[]`.
+## Output Format
+Return a SINGLE JSON code block with an array of findings. Zero findings = `[]`.
 
-### Finding Object Schema
-Each finding in the array MUST follow this exact schema:
+Each finding object: `{"id":"DOMAIN-NNN","domain":"{domain-slug}","title":"max 80 chars","severity":"critical|high|medium|low","urgent":bool,"important":bool,"description":"What is wrong and why","file":"/path or null","line":N or null,"evidence":"max 200 chars","recommendation":"Specific fix","effort":"trivial|small|medium|large","category":"sub-category"}`
 
-```json
-{
-  "id": "DOMAIN-NNN",
-  "domain": "{domain-slug}",
-  "title": "Short descriptive title (max 80 chars)",
-  "severity": "critical|high|medium|low",
-  "urgent": true/false,
-  "important": true/false,
-  "description": "Detailed description of the finding. What is wrong and why it matters.",
-  "file": "/absolute/path/to/file.ext (or null if not file-specific)",
-  "line": 42 (or null),
-  "evidence": "Code snippet, command output, or proof (max 500 chars)",
-  "recommendation": "What to do to fix this. Be specific and actionable.",
-  "effort": "trivial|small|medium|large",
-  "category": "A sub-category within the domain (e.g. 'SQL Injection' under security)"
-}
-```
-
-### Domain Slugs
-Use these exact slugs for the `domain` field:
-- `security` (01)
-- `dependencies` (02)
-- `code-quality` (03)
-- `framework-updates` (04)
-- `architecture` (05)
-- `test-coverage` (06)
-- `docs-drift` (07)
-- `performance` (08)
-- `project-health` (09)
-
-### ID Format
-Use `{DOMAIN_SLUG}-{NNN}` where NNN starts at 001 and increments. Examples: `security-001`, `dependencies-001`, `code-quality-001`.
-
-### Severity Definitions
-- **critical**: Immediate security risk, data loss, or system compromise. Exposed secrets, SQL injection, RCE vectors.
-- **high**: Significant issue that should be fixed soon. Major vulnerabilities, breaking changes, severe tech debt.
-- **medium**: Notable issue worth addressing. Moderate risk, code smells, missing best practices.
-- **low**: Minor improvement opportunity. Style issues, optional optimizations, nice-to-haves.
-
-### Effort Estimation Guide
-- **trivial**: One-line fix, config change, or adding an entry to .gitignore
-- **small**: Single-file change, adding a missing check or test, updating a dependency version
-- **medium**: Multi-file change, refactoring a function, adding a new test suite, fixing an architectural issue
-- **large**: Architectural change, major refactor, replacing a dependency, rewriting a subsystem
-
-### Urgency/Importance Definitions
-- **urgent**: Needs attention within 24-48 hours. Time-sensitive. Could escalate if ignored.
-- **important**: Has significant impact on project health, security, or maintainability. Not necessarily time-sensitive.
-
-Use both flags independently. A finding can be urgent+important, important-only, urgent-only, or neither.
+ID format: `{DOMAIN_SLUG}-001`, `{DOMAIN_SLUG}-002`, etc.
+Severity: critical=security risk/data loss, high=fix soon, medium=worth addressing, low=nice-to-have.
+Effort: trivial=one-line, small=single-file, medium=multi-file, large=architectural.
+urgent=needs attention in 24-48h. important=significant impact. Use independently.
 
 ## Rules
-1. Only report findings you have evidence for. Do not speculate.
-2. Read actual files. Run actual commands. Verify before reporting.
-3. Respect the stack profile — skip checks that do not apply to this stack.
-4. Be thorough but precise. Quality over quantity.
-5. If the codebase is very large, prioritize the most impactful areas.
-6. Return ONLY the JSON array. No preamble, no explanation outside the JSON.
+1. Only report findings with evidence. No speculation.
+2. Respect the stack profile — skip inapplicable checks.
+3. Quality over quantity. 5 solid findings beat 20 weak ones.
+4. Return ONLY the JSON array. No preamble, no explanation outside the JSON.
 ```
 
 ### Dispatching Strategy
@@ -349,25 +308,31 @@ Use both flags independently. A finding can be urgent+important, important-only,
 Use the **Task tool** to dispatch real subagent processes. The Task tool spawns independent Claude instances that work autonomously. ALL applicable domain agents MUST be dispatched in a SINGLE message (multiple Task tool calls in one response) for maximum parallelism.
 
 For each applicable domain, call the Task tool with:
-- `subagent_type`: `"general-purpose"`
+- `subagent_type`: `"Explore"` — uses a lightweight agent with fewer tool definitions, saving context for actual analysis
 - `description`: `"Night Shift: {Domain Name} audit"`
 - `prompt`: The filled-in template above (the full agent task description)
 - `run_in_background`: `true`
+- `max_turns`: `30` — hard cap prevents agents from spiraling into endless file reads
+- `model`: `"sonnet"` — faster and uses less context per turn than opus
 
 Example dispatch (showing 2 of 9 — do ALL applicable domains in one message):
 
 ```
 Task tool call 1:
-  subagent_type: "general-purpose"
+  subagent_type: "Explore"
   description: "Night Shift: Security Scan audit"
   prompt: [filled template with security domain instructions]
   run_in_background: true
+  max_turns: 30
+  model: "sonnet"
 
 Task tool call 2:
-  subagent_type: "general-purpose"
+  subagent_type: "Explore"
   description: "Night Shift: Dependency Audit audit"
   prompt: [filled template with dependency domain instructions]
   run_in_background: true
+  max_turns: 30
+  model: "sonnet"
 
 ... (all remaining applicable domains in the same message)
 ```
@@ -591,7 +556,7 @@ Write the following markdown to `${REPORT_DIR}/${REPORT_DATE}.md`:
 
 ---
 
-_Report generated by Night Shift v1.0 on {REPORT_DATE} at {current_time}._
+_Report generated by Night Shift v1.1 on {REPORT_DATE} at {current_time}._
 _Duration: {DURATION formatted}. Domains audited: {domains_run}/9._
 ```
 
