@@ -1,6 +1,6 @@
 # Domain 09: Project Health
 
-**Purpose:** Assess overall project hygiene — git health, TODO inventory, open issues/PR status, CI/CD health, file cleanup, configuration, license compliance, and lock files.
+**Purpose:** Assess overall project hygiene — git health, TODO inventory, open issues/PR status, CI/CD health, file cleanup, configuration, license compliance, lock files, commit message quality, branch naming consistency, PR merge strategy, and environment parity.
 
 **Domain slug:** `project-health`
 **ID prefix:** `project-health-NNN`
@@ -14,6 +14,11 @@ Always applicable.
 ---
 
 ## Check 1: Git Health
+
+**Multi-pass approach:**
+1. DISCOVER: Run git status, branch analysis, and history checks
+2. READ: For stale branches, read their last commit to assess if they contain important unmerged work
+3. ANALYZE: Assess overall git hygiene
 
 **Uncommitted changes:**
 ```bash
@@ -49,6 +54,11 @@ Only flag patterns relevant to detected stack. Missing .env in .gitignore: **hig
 ---
 
 ## Check 2: TODO/FIXME Inventory
+
+**Multi-pass approach:**
+1. DISCOVER: Find all TODO markers in the codebase
+2. READ: For markers >180 days old, read the surrounding code to assess urgency
+3. ANALYZE: Build age distribution and identify critical stale TODOs
 
 Find all markers:
 ```
@@ -116,6 +126,11 @@ Also check for `.gitlab-ci.yml`, `Jenkinsfile`, `bitbucket-pipelines.yml`.
 
 ## Check 5: File Hygiene
 
+**Multi-pass approach:**
+1. DISCOVER: Search for files that shouldn't be in the repo
+2. READ: For suspicious files, check if they contain sensitive data
+3. ANALYZE: Assess if the files are tracked by git or just untracked clutter
+
 Search for files that shouldn't be in the repo:
 ```bash
 find PROJECT_ROOT -type f \( -name '*.log' -o -name '*.bak' -o -name '*.swp' -o -name '*.swo' -o -name '*.tmp' -o -name '.DS_Store' -o -name 'Thumbs.db' -o -name 'desktop.ini' -o -name 'npm-debug.log' -o -name 'debug.log' -o -name 'error_log' \) -not -path '*/.git/*' -not -path '*/node_modules/*' -not -path '*/vendor/*' 2>/dev/null
@@ -179,6 +194,146 @@ git ls-files package-lock.json yarn.lock pnpm-lock.yaml composer.lock Pipfile.lo
 
 ---
 
+## Check 9: Commit Message Quality
+
+**Multi-pass approach:**
+1. DISCOVER: Sample the last 50 commits
+2. READ: Analyze commit message format and content
+3. ANALYZE: Detect the dominant convention and flag deviations
+
+### Sample commits
+```bash
+git log --oneline -50 2>/dev/null
+```
+
+### Analyze patterns
+1. **Format detection**: Do commits follow a convention?
+   - Conventional Commits: `feat:`, `fix:`, `chore:`, `docs:`, etc.
+   - Ticket-prefixed: `JIRA-123: description`
+   - Free-form: no consistent pattern
+
+2. **Quality checks:**
+   - Single-word commits (e.g., `fix`, `update`, `wip`): count them
+   - Very long first lines (>72 chars): count them
+   - Empty commit messages: count them
+   - All-lowercase or all-uppercase: note dominant style
+
+3. **Report:**
+   - Dominant convention (if any)
+   - Percentage following convention
+   - Count of low-quality commits (single-word, empty, unclear)
+
+### Severity
+- >30% of commits are single-word or empty: **low**
+- No consistent commit convention: **low** (informational)
+- Consistent convention well-followed: no finding
+
+---
+
+## Check 10: Branch Naming Consistency
+
+**Multi-pass approach:**
+1. DISCOVER: List all branches (local and remote)
+2. ANALYZE: Detect the dominant naming pattern and flag deviations
+
+### List branches
+```bash
+git branch -a --format='%(refname:short)' 2>/dev/null
+```
+
+### Detect patterns
+Common conventions:
+- `feature/description` / `bugfix/description` / `hotfix/description`
+- `TICKET-123-description`
+- `username/description`
+- `type/TICKET-description`
+
+1. Group branches by prefix pattern
+2. Identify dominant convention
+3. Flag branches that deviate significantly
+
+### Severity
+- No consistent branch naming: **low** (informational)
+- Branches with no descriptive name (e.g., `test`, `temp`, `asdf`): **low**
+- Consistent naming convention: no finding
+
+---
+
+## Check 11: PR Merge Strategy Analysis
+
+**Multi-pass approach:**
+1. DISCOVER: Examine recent merge commits to detect the strategy
+2. ANALYZE: Check for consistency in merge approach
+
+### Detect merge strategy
+```bash
+git log --merges --oneline -20 2>/dev/null
+```
+
+```bash
+git log --oneline -50 2>/dev/null | grep -c "Merge pull request\|Merge branch"
+```
+
+### Check for squash merges
+```bash
+git log --oneline -50 2>/dev/null
+```
+If most non-merge commits have PR references in the message (e.g., `(#123)`), squash merges are likely used.
+
+### Analysis
+1. **Consistency**: Is the same strategy used throughout?
+   - All regular merges: consistent
+   - All squash merges: consistent
+   - Mixed: inconsistent
+2. **Impact**: Mixed strategies make git history harder to follow
+
+### Severity
+- Mixed merge strategies: **low** (informational)
+- Consistent strategy: no finding
+
+---
+
+## Check 12: Environment Parity Check
+
+**Multi-pass approach:**
+1. DISCOVER: Find all environment config templates and actual configs
+2. READ: Compare .env.example structure against .env structure
+3. ANALYZE: Check if all required variables are documented
+
+### Find environment files
+```bash
+find PROJECT_ROOT -maxdepth 3 -name '.env*' -not -path '*/node_modules/*' -not -path '*/vendor/*' -not -path '*/.git/*' 2>/dev/null
+```
+
+### Compare .env.example with required variables
+
+**Extract variables from .env.example:**
+Read `.env.example` (or `.env.sample`) and extract variable names.
+
+**Extract variables used in code:**
+```
+(?:getenv|process\.env\.|os\.environ\.get|env\()\s*\(?\s*['"](\w+)['"]
+```
+
+**Compare:**
+1. Variables in code but NOT in .env.example: **medium** — developers won't know they're needed
+2. Variables in .env.example but NOT used in code: **low** — might be stale
+3. Variables with no default/description in .env.example: **low**
+
+### Multiple environment check
+If multiple .env files exist (`.env.local`, `.env.staging`, `.env.production`):
+- Compare structure across environments
+- Flag variables present in one but missing in another
+- Flag variables with different naming conventions
+
+### Severity
+- Required variable missing from .env.example: **medium**, `important: true`
+- Stale variable in .env.example: **low**
+- Environment config structure mismatch: **medium**
+- All variables documented and consistent: no finding
+
+---
+
 ## Output Reminder
 
-Return findings as JSON array. Use `"domain": "project-health"` and IDs like `project-health-001`. Categories: `git-health`, `todo-inventory`, `open-issues`, `ci-cd`, `file-hygiene`, `config-health`, `license-compliance`, `lock-files`.
+Return findings as JSON array. Use `"domain": "project-health"` and IDs like `project-health-001`. Categories: `git-health`, `todo-inventory`, `open-issues`, `ci-cd`, `file-hygiene`, `config-health`, `license-compliance`, `lock-files`, `commit-quality`, `branch-naming`, `merge-strategy`, `environment-parity`.
