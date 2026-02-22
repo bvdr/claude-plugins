@@ -44,34 +44,38 @@ else
     FOLDER_PATH="Unknown"
 fi
 
-# Try to get Claude's last text message from transcript
+# Try to get Claude's last message
+# Prefer the last_assistant_message field (available since v2.1.47), fall back to transcript parsing
 LAST_CLAUDE_MSG=""
-echo "$(date): DEBUG transcript_path=$TRANSCRIPT_PATH" >> "$LOG_FILE"
 
-if [ -n "$TRANSCRIPT_PATH" ] && [ -f "$TRANSCRIPT_PATH" ]; then
-    echo "$(date): DEBUG transcript file exists" >> "$LOG_FILE"
+# First try: use last_assistant_message from hook input (fast, reliable)
+LAST_CLAUDE_MSG=$(echo "$INPUT" | jq -r '.last_assistant_message // ""' 2>/dev/null)
+echo "$(date): DEBUG last_assistant_message field length=${#LAST_CLAUDE_MSG}" >> "$LOG_FILE"
 
-    # Get the most recent assistant message line (searching backwards)
-    LAST_ASSISTANT_LINE=$(tac "$TRANSCRIPT_PATH" 2>/dev/null | grep -m 1 '"type":"assistant"')
-    echo "$(date): DEBUG last_assistant_line length=${#LAST_ASSISTANT_LINE}" >> "$LOG_FILE"
+# Fallback: parse transcript file if last_assistant_message was empty
+if [ -z "$LAST_CLAUDE_MSG" ] || [ "$LAST_CLAUDE_MSG" = "null" ]; then
+    LAST_CLAUDE_MSG=""
+    echo "$(date): DEBUG falling back to transcript parsing, path=$TRANSCRIPT_PATH" >> "$LOG_FILE"
 
-    if [ -n "$LAST_ASSISTANT_LINE" ]; then
-        # Extract all text content blocks and join them
-        # Handles both array content and edge cases
-        LAST_CLAUDE_MSG=$(echo "$LAST_ASSISTANT_LINE" | jq -r '
-            .message.content // [] |
-            if type == "array" then
-                [.[] | select(.type=="text") | .text] | join("\n\n")
-            elif type == "string" then
-                .
-            else
-                ""
-            end
-        ' 2>/dev/null)
-        echo "$(date): DEBUG extracted_msg length=${#LAST_CLAUDE_MSG}" >> "$LOG_FILE"
+    if [ -n "$TRANSCRIPT_PATH" ] && [ -f "$TRANSCRIPT_PATH" ]; then
+        LAST_ASSISTANT_LINE=$(tac "$TRANSCRIPT_PATH" 2>/dev/null | grep -m 1 '"type":"assistant"')
+
+        if [ -n "$LAST_ASSISTANT_LINE" ]; then
+            LAST_CLAUDE_MSG=$(echo "$LAST_ASSISTANT_LINE" | jq -r '
+                .message.content // [] |
+                if type == "array" then
+                    [.[] | select(.type=="text") | .text] | join("\n\n")
+                elif type == "string" then
+                    .
+                else
+                    ""
+                end
+            ' 2>/dev/null)
+            echo "$(date): DEBUG transcript extracted_msg length=${#LAST_CLAUDE_MSG}" >> "$LOG_FILE"
+        fi
+    else
+        echo "$(date): DEBUG transcript file NOT found or path empty" >> "$LOG_FILE"
     fi
-else
-    echo "$(date): DEBUG transcript file NOT found or path empty" >> "$LOG_FILE"
 fi
 
 # Build dialog

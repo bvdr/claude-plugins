@@ -47,15 +47,15 @@ Hooks intercept Claude Code events and return JSON decisions:
 Claude Code Event → Hook Script (stdin: JSON) → AppleScript Dialog → JSON Response (stdout)
 ```
 
-**Hook Response Format:**
+**PermissionRequest Response Format:**
 ```json
 {
   "hookSpecificOutput": {
     "hookEventName": "PermissionRequest",
     "decision": {
-      "behavior": "allow|deny|ask",
+      "behavior": "allow|deny",
       "updatedInput": {},
-      "message": "optional context"
+      "message": "optional context (for deny)"
     }
   }
 }
@@ -64,7 +64,23 @@ Claude Code Event → Hook Script (stdin: JSON) → AppleScript Dialog → JSON 
 **Behavior values:**
 - `allow` - Approve the action
 - `deny` - Block with optional message
-- `ask` - Fall back to terminal prompt (timeout fallback)
+- To fall back to terminal prompt: exit with no stdout output (`exit 0`)
+
+**PreToolUse Response Format:**
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "allow|deny|ask",
+    "permissionDecisionReason": "reason text"
+  }
+}
+```
+
+**Stop Response Format (to block stopping):**
+```json
+{"decision": "block", "reason": "User wants to continue: ..."}
+```
 
 ## Key Implementation Patterns
 
@@ -81,6 +97,7 @@ Claude Code Event → Hook Script (stdin: JSON) → AppleScript Dialog → JSON 
 
 ### Context Extraction
 - Folder path: Last 3 directories via awk for compact display
+- Last assistant message: Use `last_assistant_message` field from Stop/SubagentStop hook input (v2.1.47+), fall back to transcript parsing
 - Last user message: Parse transcript JSON, extract from `message.content`
 
 ## Adding New Hooks
@@ -89,13 +106,23 @@ Claude Code Event → Hook Script (stdin: JSON) → AppleScript Dialog → JSON 
 2. Register in `hooks.json`:
 ```json
 {
-  "hooks": [{
-    "event": "PermissionRequest|Notification|Stop",
-    "match_tool": "ToolName",  // optional filter
-    "script": "hooks/your-script.sh"
-  }]
+  "hooks": {
+    "PermissionRequest": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/your-script.sh",
+            "timeout": 310
+          }
+        ]
+      }
+    ]
+  }
 }
 ```
+Available events: `PreToolUse`, `PermissionRequest`, `PostToolUse`, `Notification`, `Stop`, `SubagentStart`, `SubagentStop`, `SessionStart`, `SessionEnd`, `UserPromptSubmit`, `TaskCompleted`, `TeammateIdle`, `ConfigChange`, `PreCompact`
 3. Update `manifest.json` with new hook file
 
 ## Adding New Skills
