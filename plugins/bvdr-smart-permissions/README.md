@@ -25,10 +25,12 @@ Deterministic bash regex rules that run on every tool call. No LLM involved.
 - **Always-deny**: Dangerous operations (rm -rf /, sudo, curl|bash, etc.)
 - **Passthrough**: Anything ambiguous produces no output, falling through to Layer 2
 
-### Layer 2 — PermissionRequest (slow, ~8-10s)
+### Layer 2 — PermissionRequest (~1-2s with API key, ~8-10s with CLI)
 
 AI fallback using Claude Haiku. Only fires when Layer 1 didn't decide and a permission dialog would appear anyway.
 
+- **Fast path**: Direct Anthropic API call via `curl` when `ANTHROPIC_API_KEY` is set (~1-2s)
+- **Slow path**: Falls back to `claude` CLI when no API key is available (~8-10s)
 - Loads `permission-policy.md` as the evaluation ruleset
 - Fail-open: if anything breaks (missing deps, timeout, parse error), shows normal dialog
 - Recursion-safe: guards against infinite loops via env checks
@@ -86,9 +88,18 @@ Composes with `interactive-notifications`: smart-permissions runs first. If it d
 ## Requirements
 
 - `jq` for JSON parsing (required for both layers)
-- `claude` CLI for AI evaluation in Layer 2 (optional; Layer 1 works without it)
+- Layer 2 needs one of:
+  - `ANTHROPIC_API_KEY` env var (fast path — direct API, ~1-2s)
+  - `claude` CLI (slow path — full Node.js runtime, ~8-10s)
 
 ## Changelog
+
+### v1.5.0
+- Direct Anthropic API call via `curl` when `ANTHROPIC_API_KEY` is set — ~5x faster than CLI path (~1-2s vs ~8-10s)
+- Falls back to `claude` CLI when no API key is available
+- Increase PermissionRequest hook timeout from 60s to 180s (3 minutes)
+- Add internal `timeout` wrapper (170s) so the script can log and clean up before the hook system's hard kill
+- Add signal trap handlers (SIGTERM/SIGINT/SIGHUP) — previously the script vanished silently when killed, now it logs FAIL-OPEN entries
 
 ### v1.4.0
 - Increase PermissionRequest hook timeout from 30s to 60s

@@ -20,7 +20,7 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/permission-ai-fallback.sh",
-            "timeout": 60
+            "timeout": 180
           }
         ]
       }
