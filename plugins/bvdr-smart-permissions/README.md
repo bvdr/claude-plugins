@@ -65,6 +65,17 @@ AI fallback using Claude Haiku. Only fires when Layer 1 didn't decide and a perm
 - `networksetup`, `iptables`, `ufw`
 - Modifying `~/.ssh/`, `~/.gnupg/`
 
+## Speed Up Layer 2 with API Key
+
+By default, Layer 2 uses the `claude` CLI which spawns a full Node.js runtime (~8-10s per evaluation). Set your Anthropic API key to use the direct API path instead (~1-2s):
+
+```bash
+# Add to your ~/.zshrc or ~/.bashrc
+export ANTHROPIC_API_KEY="sk-ant-..."
+```
+
+The plugin detects the key automatically — no other configuration needed. If the key is missing or invalid, it falls back to the `claude` CLI.
+
 ## Customization
 
 Edit `permission-policy.md` to adjust the AI evaluation rules for Layer 2. This file defines what the LLM considers GREEN (allow) and RED (deny) when evaluating ambiguous commands.
