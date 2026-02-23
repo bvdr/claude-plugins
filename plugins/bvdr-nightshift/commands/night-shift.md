@@ -8,7 +8,42 @@ You are the orchestrator for the Night Shift audit system. You run autonomously 
 
 ---
 
-## Phase 0: Initialize Timestamps and Project Root
+## Phase 0: Initialize State and Project Root
+
+This phase handles both fresh starts and resumed runs. Follow the three steps in order.
+
+### Step 1: Check for existing state file
+
+The state file lives at `${REPORT_DIR}/state.json`, where `REPORT_DIR` defaults to `${PROJECT_ROOT}/reports/night-shift`. Since we may not know `PROJECT_ROOT` yet on a fresh run, first attempt to detect it:
+
+```bash
+git rev-parse --show-toplevel 2>/dev/null || pwd
+```
+
+Store as `PROJECT_ROOT` (may be overwritten if resuming). Set `REPORT_DIR` to `${PROJECT_ROOT}/reports/night-shift`.
+
+Now attempt to read `${REPORT_DIR}/state.json`:
+
+- **If the file exists and contains valid JSON with `status == "in_progress"`:**
+  - Log: `"Resuming Night Shift run from {run_id}"`
+  - Load all cached data from the state file: `project_root`, `project_name`, `stack_profile`, `stack_summary`, `start_epoch`, `findings`
+  - Override `PROJECT_ROOT`, `PROJECT_NAME`, `REPORT_DIR`, `START_EPOCH`, `REPORT_DATE` with the values from the state file
+  - If `stack_profile` is not null, restore `STACK_PROFILE` and `STACK_SUMMARY`
+  - If `findings.level1` or `findings.level2` are non-empty, restore them into `ALL_FINDINGS`
+  - Set `RESUMING = true`
+  - Determine the first incomplete phase by scanning `phases` for the first entry where `status != "completed"` — skip directly to that phase
+
+- **If the file exists and contains valid JSON with `status == "completed"`:**
+  - Log: `"Previous run completed. Starting fresh."`
+  - Delete the state file
+  - Set `RESUMING = false`
+
+- **If the file is missing, empty, or contains invalid JSON:**
+  - Set `RESUMING = false`
+
+### Step 2: Initialize timestamps and project info (only if not resuming)
+
+If `RESUMING == true`, skip this step entirely — all values were loaded from state.
 
 Run these commands first. Everything else depends on them.
 
@@ -24,7 +59,7 @@ date +%s
 
 Store the output as `START_EPOCH` (used to calculate duration at the end).
 
-Detect the project root:
+Detect the project root (if not already set):
 
 ```bash
 git rev-parse --show-toplevel 2>/dev/null || pwd
@@ -39,6 +74,86 @@ basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 ```
 
 Store the output as `PROJECT_NAME`.
+
+### Step 3: Write initial state file (only if not resuming)
+
+If `RESUMING == true`, skip this step — the state file already exists.
+
+Ensure the report directory exists:
+
+```bash
+mkdir -p "${PROJECT_ROOT}/reports/night-shift"
+```
+
+Store the resolved path as `REPORT_DIR` (or fall back to `${HOME}/.night-shift/reports/${PROJECT_NAME}/` if creation fails).
+
+Write the initial `state.json` to `${REPORT_DIR}/state.json` with this schema:
+
+```json
+{
+  "version": "2.1",
+  "run_id": "{ISO 8601 timestamp, e.g. 2026-02-23T03:14:00Z}",
+  "report_date": "{REPORT_DATE}",
+  "project_root": "{PROJECT_ROOT}",
+  "project_name": "{PROJECT_NAME}",
+  "stack_profile": null,
+  "stack_summary": null,
+  "status": "in_progress",
+  "start_epoch": "{START_EPOCH}",
+  "phases": {
+    "init": { "status": "completed", "completed_at": "{ISO 8601 timestamp}" },
+    "stack_detect": { "status": "pending" },
+    "report_dir": { "status": "pending" },
+    "history_load": { "status": "pending" },
+    "read_domains": { "status": "pending" },
+    "filter_domains": { "status": "pending" },
+    "level1_dispatch": {
+      "status": "pending",
+      "domains_completed": [],
+      "domains_pending": [],
+      "domains_skipped": [],
+      "domains_failed": []
+    },
+    "level2_dispatch": {
+      "status": "pending",
+      "domains_completed": [],
+      "domains_pending": [],
+      "domains_skipped": [],
+      "domains_failed": []
+    },
+    "validate": { "status": "pending" },
+    "critical_alert": { "status": "pending" },
+    "classify": { "status": "pending" },
+    "report": { "status": "pending" },
+    "history_update": { "status": "pending" },
+    "slack": { "status": "pending" },
+    "notion": { "status": "pending" },
+    "summary": { "status": "pending" },
+    "cleanup": { "status": "pending" }
+  },
+  "findings": {
+    "level1": [],
+    "level2": []
+  }
+}
+```
+
+Use the Write tool to create this file. The `run_id` should be the current ISO 8601 timestamp (e.g., output of `date -u +%Y-%m-%dT%H:%M:%SZ`).
+
+---
+
+### State Update Protocol
+
+After completing any phase or domain agent, update `state.json`:
+
+1. Read the current state file
+2. Update the relevant phase's `status` to `"completed"` and set `completed_at` to the current ISO 8601 timestamp
+3. For dispatch phases: move the domain from `domains_pending` to `domains_completed` (or `domains_failed` on failure), and append new findings to `findings.level1` or `findings.level2`
+4. Write the updated state back
+
+This is CRITICAL for resumability. If you skip a state update and the run is interrupted, that work is lost.
+
+After each of Phases 1-5, update `state.json` to mark the phase completed and store any computed values (`stack_profile` and `stack_summary` for Phase 1, `report_dir` for Phase 2, etc.).
 
 ---
 
@@ -721,6 +836,7 @@ These rules apply throughout ALL phases:
 7. **Git not available**: Use `pwd` as project root. Project name from directory name.
 8. **Empty codebase**: Run all domains anyway — they will report "no findings".
 9. **Partial failure**: The report MUST be written even if some domains fail. A partial report is better than no report.
+10. **State file corruption**: If `state.json` cannot be parsed during resume, treat it as a fresh run. Log a warning about the corrupted state file.
 
 ---
 
@@ -728,20 +844,20 @@ These rules apply throughout ALL phases:
 
 Before starting, verify you understand the plan:
 
-- [ ] Phase 0: Get date, epoch, project root, project name
-- [ ] Phase 1: Run stack detection, build STACK_PROFILE JSON
-- [ ] Phase 2: Create report directory
-- [ ] Phase 3: Load history.json (or null)
-- [ ] Phase 4: Read all 9 domain files (parallel read)
-- [ ] Phase 5: Filter to applicable domains
-- [ ] Phase 6: Dispatch agents sequentially (one at a time, blocking, Opus, 120 turns)
-- [ ] Phase 7: Validate collected results
-- [ ] Phase 8: Critical alert if needed (Slack)
-- [ ] Phase 9: Classify into urgency matrix
-- [ ] Phase 10: Write dashboard report with executive summary
-- [ ] Phase 11: Update history.json
-- [ ] Phase 12: Slack summary
-- [ ] Phase 13: Notion tasks
-- [ ] Phase 14: Final summary to user
+- [ ] Phase 0: Check for existing state (resume or fresh start), get date, epoch, project root, project name, write initial state file
+- [ ] Phase 1: Run stack detection, build STACK_PROFILE JSON, update state
+- [ ] Phase 2: Create report directory, update state
+- [ ] Phase 3: Load history.json (or null), update state
+- [ ] Phase 4: Read all 9 domain files (parallel read), update state
+- [ ] Phase 5: Filter to applicable domains, update state
+- [ ] Phase 6: Dispatch agents sequentially (one at a time, blocking, Opus, 120 turns), update state after each domain
+- [ ] Phase 7: Validate collected results, update state
+- [ ] Phase 8: Critical alert if needed (Slack), update state
+- [ ] Phase 9: Classify into urgency matrix, update state
+- [ ] Phase 10: Write dashboard report with executive summary, update state
+- [ ] Phase 11: Update history.json, update state
+- [ ] Phase 12: Slack summary, update state
+- [ ] Phase 13: Notion tasks, update state
+- [ ] Phase 14: Final summary to user, mark state as completed
 
 Now execute. Start with Phase 0.
