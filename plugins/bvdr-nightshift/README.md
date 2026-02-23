@@ -1,23 +1,31 @@
 # bvdr-nightshift
 
-Autonomous deep codebase audit for Claude Code. Run `/night-shift` to dispatch sequential Opus-powered auditors that perform thorough multi-pass analysis across 9 domains, with mandatory web research and unlimited depth. Designed to run overnight.
+Autonomous deep codebase audit for Claude Code. Run `/night-shift` to dispatch a 2-level swarm of sequential Opus-powered auditors — 9 Level 1 audit domains + 6 Level 2 enhancement agents — with mandatory web research, unlimited depth, and stop/resume capability. Designed to run overnight.
 
 ## What It Does
 
 When you type `/night-shift`, the plugin:
 
 1. **Detects your tech stack** (Node, PHP, Python, Go, Rust, Ruby, WordPress, Laravel, Next.js, etc.)
-2. **Dispatches 9 sequential Opus agents**, each specializing in a domain with 120 turns of deep analysis
-3. **Multi-pass analysis**: discover → read → analyze → research → report
-4. **Mandatory web research** — every domain agent uses WebSearch to verify findings against CVEs, best practices, and current documentation
-5. **Generates a dashboard report** with executive summary, saved locally as markdown
-6. **Tracks trends** across nightly runs (improving vs deteriorating)
-7. **Sends a Slack DM** with the condensed dashboard summary
-8. **Creates Notion tasks** for findings that need human attention
+2. **Level 1 — Dispatches 9 sequential Opus audit agents**, each specializing in a domain with 120 turns of deep analysis
+3. **Level 2 — Dispatches 6 sequential enhancement agents** that build on Level 1 findings (simplification, docs, diagrams, remediation, correlation, PR review)
+4. **Multi-pass analysis**: discover → read → analyze → research → report
+5. **Mandatory web research** — every agent uses WebSearch to verify findings
+6. **Stop/resume** — state persisted to `state.json` after each agent; if interrupted, resumes from where it stopped
+7. **Generates a dashboard report** with executive summary, saved locally as markdown
+8. **Tracks trends** across nightly runs (improving vs deteriorating)
+9. **Reviews open PRs** — auto-reviews non-dependabot PRs with line-level feedback and separate review files
+10. **Sends a Slack DM** with the condensed dashboard summary
+11. **Creates Notion tasks** for findings that need human attention
 
 ## How It Works
 
-Night Shift v2 uses a **sequential execution model** — each domain agent runs to completion before the next one starts. This gives every agent:
+Night Shift v2.1 uses a **2-level sequential execution model**:
+
+- **Level 1** (9 audit domains): Scan the codebase for issues across security, dependencies, code quality, etc.
+- **Level 2** (6 enhancement domains): Build on Level 1 findings with simplification suggestions, documentation updates, logic diagrams, remediation plans, cross-domain correlation, and PR code reviews.
+
+Each agent runs to completion before the next one starts. This gives every agent:
 
 - **Full context window** — no competing for shared resources
 - **120 turns** — enough to read dozens of files, trace data flows, and run web research
@@ -38,7 +46,20 @@ Night Shift v2 uses a **sequential execution model** — each domain agent runs 
 | 08 | Performance | 15 | Slow queries with EXPLAIN, N+1 patterns, unbounded queries, large assets, blocking I/O, pagination, memory leaks, autoloaded WP options, object cache, WP-Cron, asset loading, table sizes, HTTP chains, OPcache |
 | 09 | Project Health | 12 | Git hygiene, TODO inventory, CI status, file cleanup, config health, license compliance, lock files, commit quality, branch naming, merge strategy, environment parity |
 
-**Total: ~104 checks across 9 domains.**
+**Total: ~104 checks across 9 Level 1 domains.**
+
+### Level 2: Enhancement Domains
+
+| # | Domain | Purpose |
+|---|--------|---------|
+| 10 | Code Simplification | Identify overly complex code, suggest refactoring opportunities based on L1 findings |
+| 11 | Documentation Updates | Find stale/missing docs, suggest updates driven by L1 findings |
+| 12 | Logic Diagrams | Produce Mermaid diagrams for complex flows identified in audit |
+| 13 | Remediation Planning | Group L1 findings into prioritized, actionable fix plans with effort estimates |
+| 14 | Cross-Domain Correlation | Find systemic patterns across L1 domains, cascading risk chains |
+| 15 | PR Code Review | Auto-review open non-dependabot PRs with line-level feedback and separate review files |
+
+Level 2 agents receive all Level 1 findings as input (except domain 15, which reads PRs directly from GitHub).
 
 ## Installation
 
@@ -63,17 +84,19 @@ That's it. The agent runs autonomously until done. Close your laptop, go to slee
 
 ## Performance Expectations
 
-Night Shift v2 trades speed for depth. Each domain agent runs sequentially with up to 120 turns of analysis, mandatory web research, and full file reads.
+Night Shift trades speed for depth. Each domain agent runs sequentially with up to 120 turns of analysis, mandatory web research, and full file reads.
 
-| Metric | v1.1 (Parallel Sonnet) | v2.0 (Sequential Opus) |
-|--------|------------------------|------------------------|
-| Duration | 10-15 minutes | 2-4.5 hours |
-| Agent model | Sonnet | Opus 4.6 |
-| Turns per domain | 30 | 120 |
-| Total checks | ~50 | ~104 |
-| Web research | Optional | Mandatory |
-| File reads | Max 15 per domain | Unlimited |
-| Finding depth | Pattern matching | Multi-pass analysis |
+| Metric | v1.1 (Parallel Sonnet) | v2.0 (Sequential Opus) | v2.1 (2-Level Swarm) |
+|--------|------------------------|------------------------|----------------------|
+| Duration | 10-15 minutes | 2-4.5 hours | 3-6 hours |
+| Agent model | Sonnet | Opus 4.6 | Opus 4.6 |
+| Turns per domain | 30 | 120 | 120 |
+| Domains | 9 | 9 | 15 (9 L1 + 6 L2) |
+| Total checks | ~50 | ~104 | ~104 + L2 enhancements |
+| Web research | Optional | Mandatory | Mandatory |
+| File reads | Max 15 per domain | Unlimited | Unlimited |
+| Finding depth | Pattern matching | Multi-pass analysis | Multi-pass + cross-domain |
+| Stop/resume | No | No | Yes (state.json) |
 
 **Designed for overnight runs.** Start it before bed, review the report in the morning.
 
@@ -84,21 +107,24 @@ Reports are saved to `{project_root}/reports/night-shift/YYYY-MM-DD.md` with a d
 ```
 # Night Shift Report - 2026-02-20
 
-Project: my-app | Stack: PHP, WordPress, Node | Duration: 3h 12m | Domains: 9/9
+Project: my-app | Stack: PHP, WordPress, Node | Duration: 4h 30m | Domains: 15/15
 
 ## Executive Summary
 The codebase is in generally good shape with no critical security vulnerabilities...
 
 ## Dashboard
 
-| Domain        | Status | Findings | Trend |
-|---------------|--------|----------|-------|
-| Security      | 🟢     | 2        | ↓     |
-| Dependencies  | 🟡     | 5        | →     |
-| Code Quality  | 🟡     | 14       | ↓     |
-| ...           | ...    | ...      | ...   |
+| Domain                          | Status | Findings | Trend |
+|---------------------------------|--------|----------|-------|
+| Security                        | 🟢     | 2        | ↓     |
+| Dependencies                    | 🟡     | 5        | →     |
+| Code Quality                    | 🟡     | 14       | ↓     |
+| ...                             | ...    | ...      | ...   |
+| **--- Level 2: Enhancement ---**|        |          |       |
+| Code Simplification             | 🟢     | 3        | —     |
+| PR Code Review                  | 🟡     | 2        | —     |
 
-Total: 38 findings (was 42, ↓ improving)
+Total: 54 findings (L1: 42, L2: 12) — was 42, ↓ improving
 ```
 
 ## Trend Tracking
@@ -114,7 +140,7 @@ Requires the `bvdr:send-slack-notification` skill to be configured. Sends a cond
 Requires the `Notion:notion-create-task` skill. Creates tasks in your Work Inbox for findings classified as Important or Urgent+Important.
 
 ### GitHub (optional)
-Uses `gh` CLI if available to check open issues, PR status, and CI health.
+Uses `gh` CLI if available to check open issues, PR status, and CI health. Domain 15 (PR Code Review) requires `gh auth status` to succeed — skipped automatically if not authenticated.
 
 ## Severity & Urgency Matrix
 
@@ -137,7 +163,35 @@ Night Shift works on any codebase. It detects your stack automatically and adapt
 - Checks framework-specific patterns (WordPress, Laravel, Django, etc.)
 - Falls back gracefully when tools aren't installed
 
+## Stop/Resume
+
+Night Shift persists state to `reports/night-shift/state.json` after each agent completes. If interrupted (context limit, crash, manual stop), the next `/night-shift` run detects the in-progress state file and resumes from where it stopped — skipping completed phases and domains.
+
+State tracks: completed phases, domain results, accumulated findings. If interrupted mid-domain, only that single domain reruns on resume.
+
 ## Changelog
+
+### v2.1.0 — 2-Level Swarm with Resumability
+
+Extends v2.0 with 6 new Level 2 enhancement agents and state persistence for stop/resume.
+
+**New features:**
+- **2-level swarm** — 6 Level 2 agents build on Level 1 findings (simplification, docs, diagrams, remediation, correlation, PR review)
+- **Stop/resume** — state persisted to `state.json` after each agent; interrupted runs resume from where they stopped
+- **PR code review** — auto-reviews open non-dependabot PRs with line-level feedback and separate review files per PR
+- **15 domains total** — 9 Level 1 audit + 6 Level 2 enhancement
+
+**Architecture:**
+- Level 2 agents receive all Level 1 findings as JSON input
+- Domain 15 (PR Code Review) is independent — reads PRs via `gh` CLI
+- State file tracks phases, domain completion, and accumulated findings
+- Report dashboard extended to 15 rows with L1/L2 separator
+
+**Report changes:**
+- Dashboard grows from 9 to 15 rows with visual Level 2 separator
+- New "Level 2: Enhancement Analysis" report section
+- Totals line shows L1/L2 breakdown
+- History schema extended with L2 domain counts
 
 ### v2.0.0 — Deep Sequential Analysis Rewrite
 

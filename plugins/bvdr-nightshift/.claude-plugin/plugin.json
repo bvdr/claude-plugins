@@ -1,7 +1,7 @@
 {
   "name": "bvdr-nightshift",
-  "version": "2.0.0",
-  "description": "Autonomous deep codebase audit agent. Run /night-shift to dispatch sequential Opus-powered auditors analyzing security, dependencies, code quality, framework updates, architecture, test coverage, documentation drift, performance, and project health. Multi-pass analysis with mandatory web research. Produces a dashboard report with executive summary, trend tracking, Slack summary, and Notion tasks.",
+  "version": "2.1.0",
+  "description": "Autonomous deep codebase audit with 2-level swarm. Level 1: 9 audit domains (security, dependencies, code quality, framework updates, architecture, test coverage, docs drift, performance, project health). Level 2: 6 enhancement agents (code simplification, documentation updates, logic diagrams, remediation planning, cross-domain correlation, PR code review). Features: sequential Opus agents, state persistence for stop/resume, dashboard report with executive summary, trend tracking, Slack summary, and Notion tasks.",
   "author": {
     "name": "Bogdan Dragomir",
     "url": "https://github.com/bvdr"

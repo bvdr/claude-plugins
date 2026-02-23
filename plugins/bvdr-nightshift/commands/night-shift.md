@@ -1,14 +1,49 @@
 ---
-description: Run autonomous deep codebase audit across 9 domains with sequential Opus agents, dashboard report, trend tracking, and Slack/Notion integration
+description: Run autonomous deep codebase audit across 15 domains with sequential Opus agents, dashboard report, trend tracking, and Slack/Notion integration
 ---
 
-# Night Shift v2 — Autonomous Deep Codebase Audit Orchestrator
+# Night Shift v2.1 — Autonomous Deep Codebase Audit Orchestrator
 
 You are the orchestrator for the Night Shift audit system. You run autonomously with zero human input. Every decision, every fallback, every edge case is handled by YOU. Read this entire file before taking any action.
 
 ---
 
-## Phase 0: Initialize Timestamps and Project Root
+## Phase 0: Initialize State and Project Root
+
+This phase handles both fresh starts and resumed runs. Follow the three steps in order.
+
+### Step 1: Check for existing state file
+
+The state file lives at `${REPORT_DIR}/state.json`, where `REPORT_DIR` defaults to `${PROJECT_ROOT}/reports/night-shift`. Since we may not know `PROJECT_ROOT` yet on a fresh run, first attempt to detect it:
+
+```bash
+git rev-parse --show-toplevel 2>/dev/null || pwd
+```
+
+Store as `PROJECT_ROOT` (may be overwritten if resuming). Set `REPORT_DIR` to `${PROJECT_ROOT}/reports/night-shift`.
+
+Now attempt to read `${REPORT_DIR}/state.json`:
+
+- **If the file exists and contains valid JSON with `status == "in_progress"`:**
+  - Log: `"Resuming Night Shift run from {run_id}"`
+  - Load all cached data from the state file: `project_root`, `project_name`, `stack_profile`, `stack_summary`, `start_epoch`, `findings`
+  - Override `PROJECT_ROOT`, `PROJECT_NAME`, `REPORT_DIR`, `START_EPOCH`, `REPORT_DATE` with the values from the state file
+  - If `stack_profile` is not null, restore `STACK_PROFILE` and `STACK_SUMMARY`
+  - If `findings.level1` or `findings.level2` are non-empty, restore them into `ALL_FINDINGS`
+  - Set `RESUMING = true`
+  - Determine the first incomplete phase by scanning `phases` for the first entry where `status != "completed"` — skip directly to that phase
+
+- **If the file exists and contains valid JSON with `status == "completed"`:**
+  - Log: `"Previous run completed. Starting fresh."`
+  - Delete the state file
+  - Set `RESUMING = false`
+
+- **If the file is missing, empty, or contains invalid JSON:**
+  - Set `RESUMING = false`
+
+### Step 2: Initialize timestamps and project info (only if not resuming)
+
+If `RESUMING == true`, skip this step entirely — all values were loaded from state.
 
 Run these commands first. Everything else depends on them.
 
@@ -24,7 +59,7 @@ date +%s
 
 Store the output as `START_EPOCH` (used to calculate duration at the end).
 
-Detect the project root:
+Detect the project root (if not already set):
 
 ```bash
 git rev-parse --show-toplevel 2>/dev/null || pwd
@@ -39,6 +74,86 @@ basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 ```
 
 Store the output as `PROJECT_NAME`.
+
+### Step 3: Write initial state file (only if not resuming)
+
+If `RESUMING == true`, skip this step — the state file already exists.
+
+Ensure the report directory exists:
+
+```bash
+mkdir -p "${PROJECT_ROOT}/reports/night-shift"
+```
+
+Store the resolved path as `REPORT_DIR` (or fall back to `${HOME}/.night-shift/reports/${PROJECT_NAME}/` if creation fails).
+
+Write the initial `state.json` to `${REPORT_DIR}/state.json` with this schema:
+
+```json
+{
+  "version": "2.1",
+  "run_id": "{ISO 8601 timestamp, e.g. 2026-02-23T03:14:00Z}",
+  "report_date": "{REPORT_DATE}",
+  "project_root": "{PROJECT_ROOT}",
+  "project_name": "{PROJECT_NAME}",
+  "stack_profile": null,
+  "stack_summary": null,
+  "status": "in_progress",
+  "start_epoch": "{START_EPOCH}",
+  "phases": {
+    "init": { "status": "completed", "completed_at": "{ISO 8601 timestamp}" },
+    "stack_detect": { "status": "pending" },
+    "report_dir": { "status": "pending" },
+    "history_load": { "status": "pending" },
+    "read_domains": { "status": "pending" },
+    "filter_domains": { "status": "pending" },
+    "level1_dispatch": {
+      "status": "pending",
+      "domains_completed": [],
+      "domains_pending": [],
+      "domains_skipped": [],
+      "domains_failed": []
+    },
+    "level2_dispatch": {
+      "status": "pending",
+      "domains_completed": [],
+      "domains_pending": [],
+      "domains_skipped": [],
+      "domains_failed": []
+    },
+    "validate": { "status": "pending" },
+    "critical_alert": { "status": "pending" },
+    "classify": { "status": "pending" },
+    "report": { "status": "pending" },
+    "history_update": { "status": "pending" },
+    "slack": { "status": "pending" },
+    "notion": { "status": "pending" },
+    "summary": { "status": "pending" },
+    "cleanup": { "status": "pending" }
+  },
+  "findings": {
+    "level1": [],
+    "level2": []
+  }
+}
+```
+
+Use the Write tool to create this file. The `run_id` should be the current ISO 8601 timestamp (e.g., output of `date -u +%Y-%m-%dT%H:%M:%SZ`).
+
+---
+
+### State Update Protocol
+
+After completing any phase or domain agent, update `state.json`:
+
+1. Read the current state file
+2. Update the relevant phase's `status` to `"completed"` and set `completed_at` to the current ISO 8601 timestamp
+3. For dispatch phases: move the domain from `domains_pending` to `domains_completed` (or `domains_failed` on failure), and append new findings to `findings.level1` or `findings.level2`
+4. Write the updated state back
+
+This is CRITICAL for resumability. If you skip a state update and the run is interrupted, that work is lost.
+
+After each of Phases 1-5, update `state.json` to mark the phase completed and store any computed values (`stack_profile` and `stack_summary` for Phase 1, `report_dir` for Phase 2, etc.).
 
 ---
 
@@ -211,9 +326,11 @@ The history.json schema is:
 
 ## Phase 4: Read Domain Instruction Files
 
-The 9 domain files are located at `${CLAUDE_PLUGIN_ROOT}/domains/`. The variable `${CLAUDE_PLUGIN_ROOT}` resolves to the root directory of this plugin (the directory containing the `.claude-plugin/` folder).
+The 15 domain files are located at `${CLAUDE_PLUGIN_ROOT}/domains/`. The variable `${CLAUDE_PLUGIN_ROOT}` resolves to the root directory of this plugin (the directory containing the `.claude-plugin/` folder).
 
-Read ALL of the following files. Use the Read tool to read them in parallel (all 9 at once):
+Read ALL of the following files. Use the Read tool to read them in parallel (all 15 at once):
+
+### Level 1 Domains (core audit)
 
 1. `${CLAUDE_PLUGIN_ROOT}/domains/01-security-scan.md`
 2. `${CLAUDE_PLUGIN_ROOT}/domains/02-dependency-audit.md`
@@ -225,15 +342,28 @@ Read ALL of the following files. Use the Read tool to read them in parallel (all
 8. `${CLAUDE_PLUGIN_ROOT}/domains/08-performance.md`
 9. `${CLAUDE_PLUGIN_ROOT}/domains/09-project-health.md`
 
+### Level 2 Domains (enhancement — run after Level 1 completes)
+
+10. `${CLAUDE_PLUGIN_ROOT}/domains/10-code-simplification.md`
+11. `${CLAUDE_PLUGIN_ROOT}/domains/11-documentation-updates.md`
+12. `${CLAUDE_PLUGIN_ROOT}/domains/12-logic-diagrams.md`
+13. `${CLAUDE_PLUGIN_ROOT}/domains/13-remediation-planning.md`
+14. `${CLAUDE_PLUGIN_ROOT}/domains/14-cross-domain-correlation.md`
+15. `${CLAUDE_PLUGIN_ROOT}/domains/15-pr-code-review.md`
+
 For each file:
 - If readable, store its full contents as `DOMAIN_INSTRUCTIONS[N]`
 - If the file is missing or unreadable, mark that domain as `SKIPPED` with reason `"Domain file not found or unreadable"` and do NOT dispatch an agent for it
+
+After reading all domain files, update `state.json`: mark `read_domains` phase as completed.
 
 ---
 
 ## Phase 5: Determine Applicable Domains
 
-Not all 9 domains apply to every project. Use this relevance logic:
+Not all 15 domains apply to every project. Use this relevance logic:
+
+### Level 1 Domains
 
 | Domain | Always Applicable | Condition to Skip |
 |--------|-------------------|-------------------|
@@ -247,13 +377,35 @@ Not all 9 domains apply to every project. Use this relevance logic:
 | 08-performance | Yes | Never skip |
 | 09-project-health | Yes | Never skip |
 
+### Level 2 Domains
+
+| Domain | Always Applicable | Condition to Skip |
+|--------|-------------------|-------------------|
+| 10-code-simplification | Yes | Never skip |
+| 11-documentation-updates | Yes | Never skip |
+| 12-logic-diagrams | Yes | Never skip |
+| 13-remediation-planning | Yes | Never skip |
+| 14-cross-domain-correlation | Yes | Never skip |
+| 15-pr-code-review | Only if `gh` authenticated | Skip if `gh auth status 2>&1` fails OR no open non-dependabot PRs |
+
+To check PR review applicability:
+```bash
+gh auth status 2>&1 && gh pr list --state=open --json number,author --limit=50 2>/dev/null
+```
+Filter out PRs where author login contains "dependabot", "renovate", or "bot". If zero remain, skip domain 15.
+
 For skipped domains, record them with reason for the report.
+
+After determining applicable domains, update `state.json`:
+- Set `level1_dispatch.domains_pending` to the list of applicable L1 domain slugs
+- Set `level2_dispatch.domains_pending` to the list of applicable L2 domain slugs
+- Mark `filter_domains` phase as completed
 
 ---
 
-## Phase 6: Sequential Domain Agent Dispatch
+## Phase 6a: Level 1 Sequential Dispatch
 
-This is the core of the operation. For EACH applicable domain, dispatch an agent using the **Task tool** — one at a time, sequentially. Wait for each agent to complete before dispatching the next.
+This is the core of the operation. For EACH applicable Level 1 domain, dispatch an agent using the **Task tool** — one at a time, sequentially. Wait for each agent to complete before dispatching the next.
 
 Each agent is dispatched using the **Task tool** (NOT TaskCreate — that's for task lists).
 
@@ -348,20 +500,129 @@ for each applicable domain in order (01 through 09):
   1. Dispatch agent with Task tool (blocking — run_in_background: false)
   2. When agent returns, extract JSON findings from its response
   3. Parse and validate JSON
-  4. If valid: append findings to ALL_FINDINGS
+  4. If valid: append findings to ALL_L1_FINDINGS
   5. If invalid: mark domain as FAILED with reason "Agent did not return valid JSON"
   6. Proceed to next domain
 ```
 
 Do NOT dispatch the next domain until the current one completes.
 
-Store all collected findings in a master array called `ALL_FINDINGS`.
+Store all collected findings in a master array called `ALL_L1_FINDINGS`.
+
+### State Checkpoint (after each L1 domain)
+
+After each domain agent returns and its findings are parsed:
+1. Read `state.json`
+2. Move the domain slug from `level1_dispatch.domains_pending` to `level1_dispatch.domains_completed`
+3. Append the parsed findings to `findings.level1`
+4. Write updated `state.json`
+
+When all L1 domains complete:
+1. Set `level1_dispatch.status` to `"completed"`
+2. Store `ALL_L1_FINDINGS` = all Level 1 findings (for passing to L2 agents)
+3. Write updated `state.json`
+
+---
+
+## Phase 6b: Level 2 Sequential Dispatch
+
+Level 2 agents run after ALL Level 1 agents complete. They receive the full Level 1 findings as additional context.
+
+### Level 2 Agent Prompt Template
+
+For each Level 2 domain, use this prompt template (extends the Level 1 template):
+
+```
+You are a Night Shift Level 2 enhancement agent for: {DOMAIN_NAME}
+
+## Your Mission
+Analyze the codebase at `{PROJECT_ROOT}` and the Level 1 audit findings below
+to produce {DOMAIN_SPECIFIC} recommendations.
+Return your findings as a JSON array.
+
+## Analysis Philosophy
+You are a senior engineer with unlimited time and full codebase access.
+
+**Multi-pass analysis:**
+1. REVIEW: Study the Level 1 findings to understand the codebase state
+2. DISCOVER: Glob/Grep to find relevant code patterns
+3. READ: Read key files in full — understand code, don't just pattern-match
+4. SYNTHESIZE: Combine L1 findings with your own analysis
+5. REPORT: Rich evidence with code snippets and specific recommendations
+
+**Rules:**
+- No file read limit. No finding cap. Be thorough.
+- WebSearch to verify best practices and research approaches.
+- Read code, don't guess from grep patterns.
+- Evidence should include code snippets (up to 500 chars).
+- Recommendations must be specific and actionable.
+- You produce ADVISORY findings only — do NOT modify any files.
+
+## Level 1 Audit Findings
+{ALL_L1_FINDINGS as JSON array}
+
+## Stack Summary: {STACK_SUMMARY}
+## Stack Profile: {STACK_PROFILE as compact JSON}
+
+## Domain Instructions
+{Full contents of the Level 2 domain instruction file}
+
+## Output Format
+Same JSON finding format as Level 1:
+{"id":"DOMAIN-NNN","domain":"{domain-slug}","title":"max 80 chars","severity":"critical|high|medium|low","urgent":bool,"important":bool,"description":"What is wrong and why","file":"/path or null","line":N or null,"evidence":"max 500 chars — include code snippets","recommendation":"Specific fix","effort":"trivial|small|medium|large","category":"sub-category"}
+
+ID format: `{DOMAIN_SLUG}-001`, `{DOMAIN_SLUG}-002`, etc.
+
+## Rules
+1. Only report findings with evidence. No speculation.
+2. Respect the stack profile — skip inapplicable checks.
+3. Be thorough. Read files, trace data flows, verify with WebSearch.
+4. Return ONLY the JSON array. No preamble, no explanation outside the JSON.
+```
+
+### Special handling for Domain 15 (PR Code Review)
+
+Domain 15 uses a modified prompt. It does NOT include Level 1 findings (it is independent). Replace the "Level 1 Audit Findings" section with:
+
+```
+## Additional Instructions for PR Code Review
+- Use `gh pr list` and `gh pr diff` via Bash tool to access PR data
+- Create review files at `{REPORT_DIR}/pr-reviews/PR-{number}-review.md` using the Write tool
+- Create the pr-reviews directory first: `mkdir -p {REPORT_DIR}/pr-reviews`
+- Follow the superpowers:requesting-code-review methodology for structured reviews
+- Return JSON findings AND write review files — both are required deliverables
+```
+
+### Dispatch Configuration (Level 2)
+
+Same as Level 1:
+- `subagent_type`: `"general-purpose"`
+- `run_in_background`: `false`
+- `max_turns`: `120`
+- `model`: `"opus"`
+
+### Sequential Loop (Level 2)
+
+```
+for each applicable Level 2 domain in order (10 through 15):
+  1. Dispatch agent with Task tool (blocking)
+  2. When agent returns, extract JSON findings
+  3. Parse and validate JSON
+  4. If valid: append findings to ALL_L2_FINDINGS
+  5. If invalid: mark domain as FAILED
+  6. Update state.json (move domain to completed, append findings to findings.level2)
+  7. Proceed to next domain
+```
+
+When all L2 domains complete:
+1. Set `level2_dispatch.status` to `"completed"`
+2. Write updated `state.json`
 
 ---
 
 ## Phase 7: Validate Collected Results
 
-After the sequential loop in Phase 6, validate `ALL_FINDINGS`:
+After the sequential loops in Phase 6a and 6b, validate BOTH `ALL_L1_FINDINGS` and `ALL_L2_FINDINGS` separately:
 
 1. Verify each finding has required fields: `id`, `domain`, `title`, `severity`, `description`
 2. Strip findings missing required fields (log a warning)
@@ -369,6 +630,10 @@ After the sequential loop in Phase 6, validate `ALL_FINDINGS`:
 4. Count total findings per domain and per severity
 
 For domains that returned no findings and were not skipped, note them as clean.
+
+After validation, combine: `ALL_FINDINGS = ALL_L1_FINDINGS + ALL_L2_FINDINGS`. Track the individual counts as `L1_COUNT` (length of validated L1 findings) and `L2_COUNT` (length of validated L2 findings) for use in later phases.
+
+Update `state.json`: mark the `validate` phase as completed.
 
 ---
 
@@ -401,6 +666,8 @@ Do NOT wait for the full report to send this alert.
 
 ## Phase 9: Classify Findings by Urgency Matrix
 
+Classification applies to ALL findings equally — both Level 1 and Level 2 findings are classified using the same urgency matrix.
+
 Iterate through `ALL_FINDINGS` and classify each into one of four quadrants:
 
 | Quadrant | Condition | Action |
@@ -411,6 +678,8 @@ Iterate through `ALL_FINDINGS` and classify each into one of four quadrants:
 | `neither` | `urgent == false && important == false` | Report appendix only |
 
 Store the classified findings in four separate arrays.
+
+Update `state.json`: mark the `classify` phase as completed.
 
 ---
 
@@ -468,8 +737,16 @@ Write the following markdown to `${REPORT_DIR}/${REPORT_DATE}.md`:
 | 7 | Docs Drift | {icon} | {count} | {c} | {h} | {m} | {l} | {arrow} |
 | 8 | Performance | {icon} | {count} | {c} | {h} | {m} | {l} | {arrow} |
 | 9 | Project Health | {icon} | {count} | {c} | {h} | {m} | {l} | {arrow} |
+| | **--- Level 2: Enhancement ---** | | | | | | | |
+| 10 | Code Simplification | {icon} | {count} | {c} | {h} | {m} | {l} | {arrow} |
+| 11 | Documentation Updates | {icon} | {count} | {c} | {h} | {m} | {l} | {arrow} |
+| 12 | Logic Diagrams | {icon} | {count} | {c} | {h} | {m} | {l} | {arrow} |
+| 13 | Remediation Planning | {icon} | {count} | {c} | {h} | {m} | {l} | {arrow} |
+| 14 | Cross-Domain Correlation | {icon} | {count} | {c} | {h} | {m} | {l} | {arrow} |
+| 15 | PR Code Review | {icon} | {count} | {c} | {h} | {m} | {l} | {arrow} |
 
-**Total: {total_findings} findings** ({critical_count} critical, {high_count} high, {medium_count} medium, {low_count} low)
+**Total: {total_findings} findings** (L1: {l1_count}, L2: {l2_count})
+({critical_count} critical, {high_count} high, {medium_count} medium, {low_count} low)
 {If PREVIOUS_RUN exists: "Previous run: {PREVIOUS_RUN.total_findings} findings on {PREVIOUS_RUN.date} — {trend_description}"}
 
 ---
@@ -528,7 +805,7 @@ Write the following markdown to `${REPORT_DIR}/${REPORT_DATE}.md`:
 
 ## All Findings by Domain
 
-{For each domain that was run and produced findings:}
+{For each Level 1 domain that was run and produced findings:}
 
 ### {N}. {Domain Name}
 
@@ -539,9 +816,26 @@ Write the following markdown to `${REPORT_DIR}/${REPORT_DATE}.md`:
 
 ---
 
+## Level 2: Enhancement Analysis
+
+{For each Level 2 domain that was run and produced findings:}
+
+### {N}. {Domain Name}
+
+| ID | Title | Severity | Category | File | Effort |
+|----|-------|----------|----------|------|--------|
+{For each finding in this domain:}
+| {finding.id} | {finding.title} | {finding.severity} | {finding.category} | `{finding.file_basename}` | {finding.effort} |
+
+{Special for Logic Diagrams domain: render Mermaid diagrams from evidence fields inline}
+
+{Special for PR Code Review domain: link to individual review files in pr-reviews/ directory}
+
+---
+
 ## Skipped Domains
 
-{If none skipped: "_All 9 domains were audited._"}
+{If none skipped: "_All 15 domains were audited._"}
 
 {For each skipped/failed/timed-out domain:}
 | Domain | Reason |
@@ -564,8 +858,8 @@ Write the following markdown to `${REPORT_DIR}/${REPORT_DATE}.md`:
 
 ---
 
-_Report generated by Night Shift v2.0 on {REPORT_DATE} at {current_time}._
-_Duration: {DURATION formatted}. Domains audited: {domains_run}/9._
+_Report generated by Night Shift v2.1 on {REPORT_DATE} at {current_time}._
+_Duration: {DURATION formatted}. Domains audited: {domains_run}/15._
 ```
 
 Write this report using the Write tool.
@@ -582,9 +876,11 @@ Append a new entry with this structure:
 {
   "date": "{REPORT_DATE}",
   "duration_seconds": {DURATION_SECONDS},
-  "domains_run": {count of domains that ran},
+  "domains_run": {count of L1 + L2 domains that ran},
   "domains_skipped": {count of skipped/failed/timed-out domains},
   "total_findings": {ALL_FINDINGS.length},
+  "level1_findings": {L1_COUNT},
+  "level2_findings": {L2_COUNT},
   "by_severity": {
     "critical": {count},
     "high": {count},
@@ -600,7 +896,13 @@ Append a new entry with this structure:
     "test-coverage": {count},
     "docs-drift": {count},
     "performance": {count},
-    "project-health": {count}
+    "project-health": {count},
+    "code-simplification": {count},
+    "documentation-updates": {count},
+    "logic-diagrams": {count},
+    "remediation-planning": {count},
+    "cross-domain-correlation": {count},
+    "pr-code-review": {count}
   },
   "by_urgency": {
     "urgent_important": {count},
@@ -613,6 +915,8 @@ Append a new entry with this structure:
 ```
 
 Write the updated array back to `${REPORT_DIR}/history.json` using the Write tool.
+
+Update `state.json`: mark the `history_update` phase as completed.
 
 ---
 
@@ -628,15 +932,21 @@ Night Shift Report — {REPORT_DATE}
 Project: {PROJECT_NAME}
 Stack: {STACK_SUMMARY}
 Duration: {DURATION formatted}
-Domains: {domains_run}/9
+Domains: {domains_run}/15
 
-Dashboard:
-{For each domain that ran:}
+Level 1 Audit:
+{For each L1 domain that ran:}
 {icon} {Domain Name}: {count} findings ({severity breakdown})
-{For each skipped domain:}
+{For each skipped L1 domain:}
 ⏭️ {Domain Name}: Skipped ({reason})
 
-Summary: {total_findings} findings total
+Level 2 Enhancement:
+{For each L2 domain that ran:}
+{icon} {Domain Name}: {count} findings
+{For each skipped L2 domain:}
+⏭️ {Domain Name}: Skipped ({reason})
+
+Summary: {total_findings} findings total (L1: {l1_count}, L2: {l2_count})
 - Urgent + Important: {count}
 - Important: {count}
 - Urgent: {count}
@@ -655,6 +965,8 @@ Full report: {REPORT_DIR}/{REPORT_DATE}.md
 ```
 
 If the Slack skill fails, log the failure and continue. The report file is the primary output.
+
+Update `state.json`: mark the `slack` phase as completed.
 
 ---
 
@@ -695,6 +1007,8 @@ Duration: {DURATION formatted}
 Stack: {STACK_SUMMARY}
 
 Results: {total_findings} findings across {domains_run} domains
+- Level 1: {l1_count} findings across {l1_domains_run} audit domains
+- Level 2: {l2_count} findings across {l2_domains_run} enhancement domains
 - Critical: {count} | High: {count} | Medium: {count} | Low: {count}
 - Urgent + Important: {count} | Important: {count}
 
@@ -705,6 +1019,19 @@ Results: {total_findings} findings across {domains_run} domains
 
 Trend: {If PREVIOUS_RUN: "{total} vs {prev_total} ({description})" else "First run — no trend data yet."}
 ```
+
+---
+
+## Phase 15: Cleanup State
+
+Mark the run as completed:
+
+1. Read `state.json`
+2. Set `status` to `"completed"`
+3. Set all phase statuses to `"completed"` (except any that were `"skipped"` or `"failed"`)
+4. Write updated `state.json`
+
+The state file is preserved for reference. It will be overwritten on the next fresh run.
 
 ---
 
@@ -721,6 +1048,13 @@ These rules apply throughout ALL phases:
 7. **Git not available**: Use `pwd` as project root. Project name from directory name.
 8. **Empty codebase**: Run all domains anyway — they will report "no findings".
 9. **Partial failure**: The report MUST be written even if some domains fail. A partial report is better than no report.
+10. **State file corruption**: If `state.json` cannot be parsed during resume, treat it as a fresh run. Log a warning about the corrupted state file.
+11. **State file from different project**: Compare `project_root` — if different, log warning, start fresh.
+12. **L2 agent can't parse L1 findings**: Pass empty array as L1 findings, note in the L2 agent's findings.
+13. **`gh` CLI not available**: Skip domain 15, note in report as skipped.
+14. **No open PRs**: Skip domain 15, note reason "No open non-dependabot PRs found".
+15. **PR review file write fails**: Log warning, include findings in main report only.
+16. **Resume after >24h**: Log warning "State is {N} hours old — findings may be stale" but proceed.
 
 ---
 
@@ -728,20 +1062,22 @@ These rules apply throughout ALL phases:
 
 Before starting, verify you understand the plan:
 
-- [ ] Phase 0: Get date, epoch, project root, project name
+- [ ] Phase 0: Check for state.json → resume or init fresh
 - [ ] Phase 1: Run stack detection, build STACK_PROFILE JSON
 - [ ] Phase 2: Create report directory
 - [ ] Phase 3: Load history.json (or null)
-- [ ] Phase 4: Read all 9 domain files (parallel read)
-- [ ] Phase 5: Filter to applicable domains
-- [ ] Phase 6: Dispatch agents sequentially (one at a time, blocking, Opus, 120 turns)
-- [ ] Phase 7: Validate collected results
+- [ ] Phase 4: Read all 15 domain files (parallel read)
+- [ ] Phase 5: Filter to applicable domains (L1 + L2)
+- [ ] Phase 6a: Dispatch Level 1 agents sequentially (state checkpoint after each)
+- [ ] Phase 6b: Dispatch Level 2 agents sequentially (pass L1 findings, state checkpoint after each)
+- [ ] Phase 7: Validate collected results (L1 + L2)
 - [ ] Phase 8: Critical alert if needed (Slack)
 - [ ] Phase 9: Classify into urgency matrix
-- [ ] Phase 10: Write dashboard report with executive summary
-- [ ] Phase 11: Update history.json
-- [ ] Phase 12: Slack summary
+- [ ] Phase 10: Write dashboard report with L1 + L2 sections
+- [ ] Phase 11: Update history.json with L2 domain counts
+- [ ] Phase 12: Slack summary with L2 line
 - [ ] Phase 13: Notion tasks
-- [ ] Phase 14: Final summary to user
+- [ ] Phase 14: Final summary to user with L1/L2 breakdown
+- [ ] Phase 15: Mark state.json as completed
 
 Now execute. Start with Phase 0.
