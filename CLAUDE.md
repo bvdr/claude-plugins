@@ -105,6 +105,14 @@ Claude Code Event → Hook Script (stdin: JSON) → AppleScript Dialog → JSON 
 3. Register in plugin's `.claude-plugin/plugin.json`
 4. Skills can use `AskUserQuestion` tool for interactive configuration
 
+## Important: Version Bumps Require TWO Files
+
+When releasing a new plugin version, you MUST update the version in BOTH places:
+1. **`plugins/<name>/.claude-plugin/plugin.json`** — the plugin's own metadata
+2. **`.claude-plugin/marketplace.json`** — the marketplace registry (this is what `/plugin` and Claude Desktop read to display the version)
+
+If you only update `plugin.json`, the plugin will still show the old version everywhere.
+
 ## Important: Keep README.md in Sync
 
 When adding, removing, or renaming plugins/skills, always update the root `README.md` to reflect the changes. This includes the plugin listings, install commands, skills table, and repository structure section.
