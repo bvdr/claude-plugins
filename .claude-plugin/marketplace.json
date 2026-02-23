@@ -27,8 +27,8 @@
     {
       "name": "bvdr-nightshift",
       "source": "./plugins/bvdr-nightshift",
-      "description": "Autonomous overnight codebase audit. Dispatches parallel agents for security, dependencies, code quality, updates, architecture, tests, docs, performance, and project health.",
-      "version": "1.1.0"
+      "description": "Autonomous deep codebase audit with 2-level swarm. 9 Level 1 audit domains + 6 Level 2 enhancement agents. Stop/resume, dashboard report, trend tracking, Slack/Notion integration.",
+      "version": "2.1.0"
     }
   ]
 }
