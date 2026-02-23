@@ -1,8 +1,8 @@
 ---
-description: Run autonomous overnight codebase audit across 9 domains with parallel agents, dashboard report, trend tracking, and Slack/Notion integration
+description: Run autonomous deep codebase audit across 9 domains with sequential Opus agents, dashboard report, trend tracking, and Slack/Notion integration
 ---
 
-# Night Shift — Autonomous Codebase Audit Orchestrator
+# Night Shift v2 — Autonomous Deep Codebase Audit Orchestrator
 
 You are the orchestrator for the Night Shift audit system. You run autonomously with zero human input. Every decision, every fallback, every edge case is handled by YOU. Read this entire file before taking any action.
 
@@ -251,15 +251,38 @@ For skipped domains, record them with reason for the report.
 
 ---
 
-## Phase 6: Dispatch Parallel Domain Agents
+## Phase 6: Sequential Domain Agent Dispatch
 
-This is the core of the operation. For EACH applicable domain, dispatch a background agent using the **Task tool** with `run_in_background: true`. All applicable agents MUST be dispatched in a single message to maximize parallelism.
+This is the core of the operation. For EACH applicable domain, dispatch an agent using the **Task tool** — one at a time, sequentially. Wait for each agent to complete before dispatching the next.
 
-Each agent is dispatched using the **Task tool** (NOT TaskCreate — that's for task lists) with the following structure:
+Each agent is dispatched using the **Task tool** (NOT TaskCreate — that's for task lists).
 
-### Agent Task Description Template
+### Analysis Philosophy
 
-For each domain agent, create a task with this description (fill in the placeholders):
+Every domain agent receives this philosophy block in its prompt. This is the core improvement of Night Shift v2 — agents are given the freedom and time to do thorough, senior-level analysis.
+
+```
+## Analysis Philosophy
+You are a senior auditor with unlimited time and full codebase access.
+
+**Multi-pass analysis:**
+1. DISCOVER: Glob/Grep to map the relevant codebase surface
+2. READ: Read key files in full — understand code, don't just pattern-match
+3. ANALYZE: Look for actual bugs, logic errors, design problems
+4. RESEARCH: WebSearch to verify findings against CVEs, best practices, docs
+5. REPORT: Rich evidence with code snippets and specific recommendations
+
+**Rules:**
+- No file read limit. No finding cap. Be thorough.
+- WebSearch for every domain — verify best practices, check CVEs, research fixes.
+- Read code, don't guess from grep patterns.
+- Evidence should include code snippets (up to 500 chars).
+- Recommendations must be specific and actionable.
+```
+
+### Agent Prompt Template
+
+For each domain agent, create a task with this prompt (fill in the placeholders):
 
 ```
 You are a Night Shift domain auditor for: {DOMAIN_NAME}
@@ -268,17 +291,22 @@ You are a Night Shift domain auditor for: {DOMAIN_NAME}
 Audit the codebase at `{PROJECT_ROOT}` for the domain: {DOMAIN_NAME}.
 Return your findings as a JSON array.
 
-## CONTEXT BUDGET — CRITICAL
-You have a LIMITED context window. Exceeding it kills your audit. Follow these rules strictly:
+## Analysis Philosophy
+You are a senior auditor with unlimited time and full codebase access.
 
-1. **Max 15 file reads total.** Use Grep to search, not Read to browse. Never read a file just to "explore".
-2. **Grep with limits.** Always use `head_limit: 20` on Grep calls. Never return unlimited results.
-3. **Max 10 findings.** Stop after 10. Prioritize critical > high > medium. Skip low unless nothing else found.
-4. **Sampling.** For checks that say "scan all files", sample at most 30 files using Glob then Grep.
-5. **Evidence brevity.** Keep evidence under 200 characters. A file path + line number is often enough.
-6. **No Bash for file search.** Use Glob/Grep tools instead of `find` or `grep` commands.
-7. **Skip irrelevant stack checks.** If the stack profile says a language is false, skip ALL checks for it immediately.
-8. **Finish early.** Once you have solid findings, stop. Don't hunt for more.
+**Multi-pass analysis:**
+1. DISCOVER: Glob/Grep to map the relevant codebase surface
+2. READ: Read key files in full — understand code, don't just pattern-match
+3. ANALYZE: Look for actual bugs, logic errors, design problems
+4. RESEARCH: WebSearch to verify findings against CVEs, best practices, docs
+5. REPORT: Rich evidence with code snippets and specific recommendations
+
+**Rules:**
+- No file read limit. No finding cap. Be thorough.
+- WebSearch for every domain — verify best practices, check CVEs, research fixes.
+- Read code, don't guess from grep patterns.
+- Evidence should include code snippets (up to 500 chars).
+- Recommendations must be specific and actionable.
 
 ## Stack Summary: {STACK_SUMMARY}
 ## Stack Profile: {STACK_PROFILE as compact single-line JSON}
@@ -289,7 +317,7 @@ You have a LIMITED context window. Exceeding it kills your audit. Follow these r
 ## Output Format
 Return a SINGLE JSON code block with an array of findings. Zero findings = `[]`.
 
-Each finding object: `{"id":"DOMAIN-NNN","domain":"{domain-slug}","title":"max 80 chars","severity":"critical|high|medium|low","urgent":bool,"important":bool,"description":"What is wrong and why","file":"/path or null","line":N or null,"evidence":"max 200 chars","recommendation":"Specific fix","effort":"trivial|small|medium|large","category":"sub-category"}`
+Each finding object: `{"id":"DOMAIN-NNN","domain":"{domain-slug}","title":"max 80 chars","severity":"critical|high|medium|low","urgent":bool,"important":bool,"description":"What is wrong and why","file":"/path or null","line":N or null,"evidence":"max 500 chars — include code snippets","recommendation":"Specific fix","effort":"trivial|small|medium|large","category":"sub-category"}`
 
 ID format: `{DOMAIN_SLUG}-001`, `{DOMAIN_SLUG}-002`, etc.
 Severity: critical=security risk/data loss, high=fix soon, medium=worth addressing, low=nice-to-have.
@@ -299,74 +327,48 @@ urgent=needs attention in 24-48h. important=significant impact. Use independentl
 ## Rules
 1. Only report findings with evidence. No speculation.
 2. Respect the stack profile — skip inapplicable checks.
-3. Quality over quantity. 5 solid findings beat 20 weak ones.
+3. Be thorough. Read files, trace data flows, verify with WebSearch.
 4. Return ONLY the JSON array. No preamble, no explanation outside the JSON.
 ```
 
-### Dispatching Strategy
-
-Use the **Task tool** to dispatch real subagent processes. The Task tool spawns independent Claude instances that work autonomously. ALL applicable domain agents MUST be dispatched in a SINGLE message (multiple Task tool calls in one response) for maximum parallelism.
+### Dispatch Configuration
 
 For each applicable domain, call the Task tool with:
-- `subagent_type`: `"Explore"` — uses a lightweight agent with fewer tool definitions, saving context for actual analysis
+- `subagent_type`: `"general-purpose"` — full access to all tools including WebSearch
 - `description`: `"Night Shift: {Domain Name} audit"`
-- `prompt`: The filled-in template above (the full agent task description)
-- `run_in_background`: `true`
-- `max_turns`: `30` — hard cap prevents agents from spiraling into endless file reads
-- `model`: `"sonnet"` — faster and uses less context per turn than opus
+- `prompt`: The filled-in template above
+- `run_in_background`: `false` — wait for each agent to complete
+- `max_turns`: `120` — agents have unlimited depth for thorough analysis
+- `model`: `"opus"` — maximum capability for deep analysis
 
-Example dispatch (showing 2 of 9 — do ALL applicable domains in one message):
+### Sequential Loop
 
 ```
-Task tool call 1:
-  subagent_type: "Explore"
-  description: "Night Shift: Security Scan audit"
-  prompt: [filled template with security domain instructions]
-  run_in_background: true
-  max_turns: 30
-  model: "sonnet"
-
-Task tool call 2:
-  subagent_type: "Explore"
-  description: "Night Shift: Dependency Audit audit"
-  prompt: [filled template with dependency domain instructions]
-  run_in_background: true
-  max_turns: 30
-  model: "sonnet"
-
-... (all remaining applicable domains in the same message)
+for each applicable domain in order (01 through 09):
+  1. Dispatch agent with Task tool (blocking — run_in_background: false)
+  2. When agent returns, extract JSON findings from its response
+  3. Parse and validate JSON
+  4. If valid: append findings to ALL_FINDINGS
+  5. If invalid: mark domain as FAILED with reason "Agent did not return valid JSON"
+  6. Proceed to next domain
 ```
 
-Each background agent returns an `output_file` path. Store all output file paths in a map: `AGENT_OUTPUTS[domain_slug] = output_file_path`.
+Do NOT dispatch the next domain until the current one completes.
+
+Store all collected findings in a master array called `ALL_FINDINGS`.
 
 ---
 
-## Phase 7: Collect Results From All Agents
+## Phase 7: Validate Collected Results
 
-Each background Task agent writes its output to the `output_file` path returned at dispatch time. Poll for completion by reading these output files.
+After the sequential loop in Phase 6, validate `ALL_FINDINGS`:
 
-### Collection Strategy
+1. Verify each finding has required fields: `id`, `domain`, `title`, `severity`, `description`
+2. Strip findings missing required fields (log a warning)
+3. Deduplicate findings with identical `title` + `file` + `line` combinations
+4. Count total findings per domain and per severity
 
-1. Wait 30 seconds after dispatch to let agents start working
-2. Use the Read tool to check each `output_file` — if the file contains the agent's final response (look for a JSON array), that agent is done
-3. If an output file is empty or contains only partial progress, wait another 30 seconds and check again
-4. Use `TaskOutput` with the agent's task_id (returned at dispatch) to check status: call with `block: false` to check without waiting, or `block: true, timeout: 60000` to wait up to 60 seconds for a specific agent
-5. Repeat until all agents are done or 10 minutes have elapsed since dispatch
-
-### Parsing Results
-
-For each completed agent:
-1. Read the agent's output (from TaskOutput or the output_file)
-2. Extract the JSON array of findings — look for the JSON code block in the agent's response
-3. Parse the JSON array. If valid, add all findings to `ALL_FINDINGS`
-4. If parsing fails (no valid JSON found), dispatch ONE retry agent with the same instructions (NOT in background — use `run_in_background: false` so you can get the result directly)
-5. If the retry also fails, mark the domain as `FAILED` with reason `"Agent did not return valid JSON after retry"`
-
-For agents that have not completed within 10 minutes:
-1. Mark the domain as `TIMED_OUT` with reason `"Agent exceeded 10-minute timeout"`
-2. Do NOT wait longer — proceed with available results
-
-Store all collected findings in a master array called `ALL_FINDINGS`.
+For domains that returned no findings and were not skipped, note them as clean.
 
 ---
 
@@ -443,7 +445,13 @@ Write the following markdown to `${REPORT_DIR}/${REPORT_DATE}.md`:
 ```markdown
 # Night Shift Report — {REPORT_DATE}
 
-**Project:** {PROJECT_NAME} | **Stack:** {STACK_SUMMARY} | **Duration:** {DURATION formatted as Xm Ys} | **Domains:** {domains_run}/{domains_total}
+**Project:** {PROJECT_NAME} | **Stack:** {STACK_SUMMARY} | **Duration:** {DURATION formatted as Xh Ym Zs} | **Domains:** {domains_run}/{domains_total}
+
+---
+
+## Executive Summary
+
+{Write 3-5 sentences summarizing the overall health of the codebase. Highlight the most critical findings. Compare against the previous run if available. Mention which domains are cleanest and which need the most attention. This should be written in prose, not bullet points.}
 
 ---
 
@@ -556,7 +564,7 @@ Write the following markdown to `${REPORT_DIR}/${REPORT_DATE}.md`:
 
 ---
 
-_Report generated by Night Shift v1.1 on {REPORT_DATE} at {current_time}._
+_Report generated by Night Shift v2.0 on {REPORT_DATE} at {current_time}._
 _Duration: {DURATION formatted}. Domains audited: {domains_run}/9._
 ```
 
@@ -705,27 +713,14 @@ Trend: {If PREVIOUS_RUN: "{total} vs {prev_total} ({description})" else "First r
 These rules apply throughout ALL phases:
 
 1. **Domain file missing**: Skip domain, note in report. Do NOT abort.
-2. **Agent returns invalid JSON**: Retry ONCE with same instructions. If still invalid, mark as FAILED.
-3. **Agent timeout (>10 min)**: Mark as TIMED_OUT. Do NOT wait longer.
+2. **Agent returns invalid JSON**: Mark domain as FAILED with reason. Do NOT retry — sequential mode means each agent has ample time and context to get it right.
+3. **Agent timeout (>45 min per domain)**: Mark as TIMED_OUT. Proceed to next domain.
 4. **Slack skill unavailable**: Log warning, continue without Slack.
 5. **Notion skill unavailable**: Log warning, continue without Notion.
 6. **Report directory not writable**: Fall back to `${HOME}/.night-shift/reports/${PROJECT_NAME}/`.
 7. **Git not available**: Use `pwd` as project root. Project name from directory name.
 8. **Empty codebase**: Run all domains anyway — they will report "no findings".
-9. **Context window pressure**: If you detect you are running low on context, reduce remaining domain agent depth by instructing them to focus on critical/high findings only. Note this in the report as "Reduced depth due to context constraints".
-10. **Partial failure**: The report MUST be written even if some domains fail. A partial report is better than no report.
-
----
-
-## Context Management Strategy
-
-You are an orchestrator managing up to 9 parallel agents. Be efficient:
-
-1. **Dispatch all agents in ONE message** — do not dispatch them one at a time
-2. **Poll task completion in batches** — check all tasks at once with `TaskList`, not individually
-3. **Parse results concisely** — extract findings JSON, discard agent commentary
-4. **Do not re-read domain files** after initial read — cache their contents
-5. **Report assembly is string concatenation** — do not re-analyze findings while writing the report
+9. **Partial failure**: The report MUST be written even if some domains fail. A partial report is better than no report.
 
 ---
 
@@ -737,13 +732,13 @@ Before starting, verify you understand the plan:
 - [ ] Phase 1: Run stack detection, build STACK_PROFILE JSON
 - [ ] Phase 2: Create report directory
 - [ ] Phase 3: Load history.json (or null)
-- [ ] Phase 4: Read all 9 domain files (parallel)
+- [ ] Phase 4: Read all 9 domain files (parallel read)
 - [ ] Phase 5: Filter to applicable domains
-- [ ] Phase 6: Dispatch agents (parallel TaskCreate)
-- [ ] Phase 7: Collect and parse results
+- [ ] Phase 6: Dispatch agents sequentially (one at a time, blocking, Opus, 120 turns)
+- [ ] Phase 7: Validate collected results
 - [ ] Phase 8: Critical alert if needed (Slack)
 - [ ] Phase 9: Classify into urgency matrix
-- [ ] Phase 10: Write dashboard report
+- [ ] Phase 10: Write dashboard report with executive summary
 - [ ] Phase 11: Update history.json
 - [ ] Phase 12: Slack summary
 - [ ] Phase 13: Notion tasks

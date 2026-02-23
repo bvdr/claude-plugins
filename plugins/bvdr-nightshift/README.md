@@ -1,32 +1,44 @@
 # bvdr-nightshift
 
-Autonomous overnight codebase audit for Claude Code. Run `/night-shift` to dispatch a team of parallel audit agents that analyze your codebase across 9 domains and deliver a morning report.
+Autonomous deep codebase audit for Claude Code. Run `/night-shift` to dispatch sequential Opus-powered auditors that perform thorough multi-pass analysis across 9 domains, with mandatory web research and unlimited depth. Designed to run overnight.
 
 ## What It Does
 
 When you type `/night-shift`, the plugin:
 
 1. **Detects your tech stack** (Node, PHP, Python, Go, Rust, Ruby, WordPress, Laravel, Next.js, etc.)
-2. **Dispatches up to 9 parallel audit agents**, each specializing in a domain
-3. **Collects findings** with severity classification and urgency matrix
-4. **Generates a dashboard report** saved locally as markdown
-5. **Tracks trends** across nightly runs (improving vs deteriorating)
-6. **Sends a Slack DM** with the condensed dashboard summary
-7. **Creates Notion tasks** for findings that need human attention
+2. **Dispatches 9 sequential Opus agents**, each specializing in a domain with 120 turns of deep analysis
+3. **Multi-pass analysis**: discover → read → analyze → research → report
+4. **Mandatory web research** — every domain agent uses WebSearch to verify findings against CVEs, best practices, and current documentation
+5. **Generates a dashboard report** with executive summary, saved locally as markdown
+6. **Tracks trends** across nightly runs (improving vs deteriorating)
+7. **Sends a Slack DM** with the condensed dashboard summary
+8. **Creates Notion tasks** for findings that need human attention
+
+## How It Works
+
+Night Shift v2 uses a **sequential execution model** — each domain agent runs to completion before the next one starts. This gives every agent:
+
+- **Full context window** — no competing for shared resources
+- **120 turns** — enough to read dozens of files, trace data flows, and run web research
+- **Opus 4.6 model** — maximum reasoning capability for finding real bugs, not just pattern matches
+- **Multi-pass analysis** — agents discover, read, analyze, research, and report
 
 ## Audit Domains
 
-| # | Domain | What It Checks |
-|---|--------|----------------|
-| 01 | Security Scan | Hardcoded secrets, SQL injection, XSS, missing auth, dangerous functions |
-| 02 | Dependency Audit | CVEs, outdated packages, unused deps, abandoned packages |
-| 03 | Code Quality | Linter violations, dead code, duplication, complexity, stale TODOs |
-| 04 | Framework Updates | Plugin/package update safety with changelog + breaking change analysis |
-| 05 | Architecture | God files, circular deps, coupling, pattern consistency, hotspots |
-| 06 | Test Coverage | Missing tests, untested critical paths, test quality, suite health |
-| 07 | Docs Drift | README accuracy, CLAUDE.md validity, stale docs, broken links |
-| 08 | Performance | Slow queries, N+1 patterns, missing indexes, large assets, blocking I/O |
-| 09 | Project Health | Git hygiene, TODO inventory, CI status, file cleanup, license compliance |
+| # | Domain | Checks | What It Covers |
+|---|--------|--------|----------------|
+| 01 | Security Scan | 16 | Secrets, SQL injection, XSS, auth gaps, OWASP headers, rate limiting, session security, file upload, CSRF, directory traversal, info disclosure, deserialization |
+| 02 | Dependency Audit | 9 | CVEs with deep web research, outdated packages, unused deps, abandoned packages, license conflicts, dependency tree depth, transitive vulnerability tracing |
+| 03 | Code Quality | 12 | Linter violations, dead code, duplication, complexity, naming, stale TODOs, logic errors, type coercion bugs, unchecked returns, error handling gaps, copy-paste bugs, debug code |
+| 04 | Framework Updates | 9 | Plugin/package updates with changelog analysis, PHP compatibility matrix, plugin conflict detection, deprecation timelines, security patch prioritization |
+| 05 | Architecture | 12 | God files, circular deps, coupling, patterns, separation of concerns, dependency direction violations, feature entanglement, config sprawl, API surface mapping, state management, migration debt |
+| 06 | Test Coverage | 9 | Missing tests, critical path coverage, test quality, coverage regression, suite health, flaky test detection, assertion density, boundary/edge case coverage, integration test gaps |
+| 07 | Docs Drift | 10 | README accuracy, CLAUDE.md validity, API docs, comment accuracy, freshness, broken links, changelog accuracy, deployment docs, setup docs, API endpoint verification |
+| 08 | Performance | 15 | Slow queries with EXPLAIN, N+1 patterns, unbounded queries, large assets, blocking I/O, pagination, memory leaks, autoloaded WP options, object cache, WP-Cron, asset loading, table sizes, HTTP chains, OPcache |
+| 09 | Project Health | 12 | Git hygiene, TODO inventory, CI status, file cleanup, config health, license compliance, lock files, commit quality, branch naming, merge strategy, environment parity |
+
+**Total: ~104 checks across 9 domains.**
 
 ## Installation
 
@@ -49,25 +61,44 @@ claude plugin install bvdr-nightshift
 
 That's it. The agent runs autonomously until done. Close your laptop, go to sleep.
 
+## Performance Expectations
+
+Night Shift v2 trades speed for depth. Each domain agent runs sequentially with up to 120 turns of analysis, mandatory web research, and full file reads.
+
+| Metric | v1.1 (Parallel Sonnet) | v2.0 (Sequential Opus) |
+|--------|------------------------|------------------------|
+| Duration | 10-15 minutes | 2-4.5 hours |
+| Agent model | Sonnet | Opus 4.6 |
+| Turns per domain | 30 | 120 |
+| Total checks | ~50 | ~104 |
+| Web research | Optional | Mandatory |
+| File reads | Max 15 per domain | Unlimited |
+| Finding depth | Pattern matching | Multi-pass analysis |
+
+**Designed for overnight runs.** Start it before bed, review the report in the morning.
+
 ## Report Output
 
-Reports are saved to `{project_root}/reports/night-shift/YYYY-MM-DD.md` with a dashboard format:
+Reports are saved to `{project_root}/reports/night-shift/YYYY-MM-DD.md` with a dashboard format including an executive summary:
 
 ```
-# Night Shift Report - 2026-02-19
+# Night Shift Report - 2026-02-20
 
-Project: my-app | Stack: Node, TypeScript, React, Next.js | Duration: 12m 34s | Domains: 9/9
+Project: my-app | Stack: PHP, WordPress, Node | Duration: 3h 12m | Domains: 9/9
+
+## Executive Summary
+The codebase is in generally good shape with no critical security vulnerabilities...
 
 ## Dashboard
 
 | Domain        | Status | Findings | Trend |
 |---------------|--------|----------|-------|
-| Security      | 🟢     | 0        | →     |
-| Dependencies  | 🟡     | 3        | ↓     |
+| Security      | 🟢     | 2        | ↓     |
+| Dependencies  | 🟡     | 5        | →     |
 | Code Quality  | 🟡     | 14       | ↓     |
 | ...           | ...    | ...      | ...   |
 
-Total: 24 findings (was 28, ↓ fewer)
+Total: 38 findings (was 42, ↓ improving)
 ```
 
 ## Trend Tracking
@@ -77,7 +108,7 @@ Each run appends to `reports/night-shift/history.json`. Reports show improvement
 ## Integrations
 
 ### Slack (optional)
-Requires the `bvdr:send-slack-notification` skill to be configured. Sends a condensed dashboard to your DM channel.
+Requires the `bvdr:send-slack-notification` skill to be configured. Sends a condensed dashboard to your DM channel. Critical security findings trigger an immediate alert before the full report.
 
 ### Notion (optional)
 Requires the `Notion:notion-create-task` skill. Creates tasks in your Work Inbox for findings classified as Important or Urgent+Important.
@@ -108,17 +139,48 @@ Night Shift works on any codebase. It detects your stack automatically and adapt
 
 ## Changelog
 
+### v2.0.0 — Deep Sequential Analysis Rewrite
+
+Complete rewrite from shallow parallel audit to thorough sequential deep analysis.
+
+**Architecture changes:**
+- **Sequential execution** — agents run one at a time (not parallel), each with full context
+- **Opus 4.6 model** — maximum reasoning capability (was Sonnet)
+- **120 turns per domain** — unlimited depth for thorough analysis (was 30)
+- **General-purpose agents** — full tool access including WebSearch (was Explore agents)
+- **Multi-pass analysis** — discover → read → analyze → research → report
+- **Mandatory web research** — every domain agent verifies findings against external sources
+- **No artificial limits** — removed all context budget constraints, file read caps, and finding caps
+- **Executive summary** — report now includes a prose summary of overall codebase health
+
+**Domain expansions (50 → 104 checks):**
+- Security: 8 → 16 checks (added OWASP headers, rate limiting, session security, file upload, CSRF, directory traversal, info disclosure, deserialization)
+- Dependencies: 5 → 9 checks (added deep CVE research, license conflicts, tree depth, transitive tracing)
+- Code Quality: 6 → 12 checks (added logic errors, type coercion, unchecked returns, error handling, copy-paste, debug code)
+- Framework Updates: 5 → 9 checks (added PHP compatibility, plugin conflicts, deprecation timeline, security patches)
+- Architecture: 6 → 12 checks (added dependency direction, feature entanglement, config sprawl, API surface, state management, migration debt)
+- Test Coverage: 5 → 9 checks (added flaky tests, assertion density, boundary coverage, integration gaps)
+- Docs Drift: 6 → 10 checks (added changelog, deployment docs, setup docs, API endpoint verification)
+- Performance: 8 → 15 checks (added autoloaded options, object cache, WP-Cron, asset loading, table sizes, HTTP chains, OPcache)
+- Project Health: 8 → 12 checks (added commit quality, branch naming, merge strategy, environment parity)
+
+**Performance:**
+- Expected duration: 2-4.5 hours (was 10-15 minutes)
+- Designed for overnight execution
+
 ### v1.1.0 — Context Budget Fix
 
-Fixed all 9 audit agents running out of context on large codebases (e.g. WordPress with many plugins).
+Fixed all 9 audit agents running out of context on large codebases.
 
 **Changes:**
-- Added **context budget constraints** to agent prompts: max 15 file reads, max 10 findings, grep with `head_limit: 20`, sampling caps
-- Added **`max_turns: 30`** to agent dispatch — hard cap prevents agents from spiraling into endless file reads
-- Changed agent type from `general-purpose` to **`Explore`** — lighter agent with fewer tool definitions, saving context for actual analysis
-- Set agent model to **`sonnet`** — faster and uses less context per turn
-- **Condensed output schema** in agent prompts from ~80 lines to ~15 lines
-- Added **Context Budget Reminders** to the 3 largest domain files (security, code-quality, performance) with check prioritization guidance
+- Added context budget constraints to agent prompts
+- Added `max_turns: 30` to agent dispatch
+- Changed agent type to Explore (lighter agent)
+- Set agent model to Sonnet
+
+### v1.0.0 — Initial Release
+
+First version of Night Shift with parallel Sonnet agents across 9 audit domains.
 
 ## Configuration
 
