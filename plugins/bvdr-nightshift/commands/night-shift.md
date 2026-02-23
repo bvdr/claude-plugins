@@ -1,5 +1,5 @@
 ---
-description: Run autonomous deep codebase audit across 9 domains with sequential Opus agents, dashboard report, trend tracking, and Slack/Notion integration
+description: Run autonomous deep codebase audit across 15 domains with sequential Opus agents, dashboard report, trend tracking, and Slack/Notion integration
 ---
 
 # Night Shift v2 — Autonomous Deep Codebase Audit Orchestrator
@@ -326,9 +326,11 @@ The history.json schema is:
 
 ## Phase 4: Read Domain Instruction Files
 
-The 9 domain files are located at `${CLAUDE_PLUGIN_ROOT}/domains/`. The variable `${CLAUDE_PLUGIN_ROOT}` resolves to the root directory of this plugin (the directory containing the `.claude-plugin/` folder).
+The 15 domain files are located at `${CLAUDE_PLUGIN_ROOT}/domains/`. The variable `${CLAUDE_PLUGIN_ROOT}` resolves to the root directory of this plugin (the directory containing the `.claude-plugin/` folder).
 
-Read ALL of the following files. Use the Read tool to read them in parallel (all 9 at once):
+Read ALL of the following files. Use the Read tool to read them in parallel (all 15 at once):
+
+### Level 1 Domains (core audit)
 
 1. `${CLAUDE_PLUGIN_ROOT}/domains/01-security-scan.md`
 2. `${CLAUDE_PLUGIN_ROOT}/domains/02-dependency-audit.md`
@@ -340,15 +342,28 @@ Read ALL of the following files. Use the Read tool to read them in parallel (all
 8. `${CLAUDE_PLUGIN_ROOT}/domains/08-performance.md`
 9. `${CLAUDE_PLUGIN_ROOT}/domains/09-project-health.md`
 
+### Level 2 Domains (enhancement — run after Level 1 completes)
+
+10. `${CLAUDE_PLUGIN_ROOT}/domains/10-code-simplification.md`
+11. `${CLAUDE_PLUGIN_ROOT}/domains/11-documentation-updates.md`
+12. `${CLAUDE_PLUGIN_ROOT}/domains/12-logic-diagrams.md`
+13. `${CLAUDE_PLUGIN_ROOT}/domains/13-remediation-planning.md`
+14. `${CLAUDE_PLUGIN_ROOT}/domains/14-cross-domain-correlation.md`
+15. `${CLAUDE_PLUGIN_ROOT}/domains/15-pr-code-review.md`
+
 For each file:
 - If readable, store its full contents as `DOMAIN_INSTRUCTIONS[N]`
 - If the file is missing or unreadable, mark that domain as `SKIPPED` with reason `"Domain file not found or unreadable"` and do NOT dispatch an agent for it
+
+After reading all domain files, update `state.json`: mark `read_domains` phase as completed.
 
 ---
 
 ## Phase 5: Determine Applicable Domains
 
-Not all 9 domains apply to every project. Use this relevance logic:
+Not all 15 domains apply to every project. Use this relevance logic:
+
+### Level 1 Domains
 
 | Domain | Always Applicable | Condition to Skip |
 |--------|-------------------|-------------------|
@@ -362,13 +377,35 @@ Not all 9 domains apply to every project. Use this relevance logic:
 | 08-performance | Yes | Never skip |
 | 09-project-health | Yes | Never skip |
 
+### Level 2 Domains
+
+| Domain | Always Applicable | Condition to Skip |
+|--------|-------------------|-------------------|
+| 10-code-simplification | Yes | Never skip |
+| 11-documentation-updates | Yes | Never skip |
+| 12-logic-diagrams | Yes | Never skip |
+| 13-remediation-planning | Yes | Never skip |
+| 14-cross-domain-correlation | Yes | Never skip |
+| 15-pr-code-review | Only if `gh` authenticated | Skip if `gh auth status 2>&1` fails OR no open non-dependabot PRs |
+
+To check PR review applicability:
+```bash
+gh auth status 2>&1 && gh pr list --state=open --json number,author --limit=50 2>/dev/null
+```
+Filter out PRs where author login contains "dependabot", "renovate", or "bot". If zero remain, skip domain 15.
+
 For skipped domains, record them with reason for the report.
+
+After determining applicable domains, update `state.json`:
+- Set `level1_dispatch.domains_pending` to the list of applicable L1 domain slugs
+- Set `level2_dispatch.domains_pending` to the list of applicable L2 domain slugs
+- Mark `filter_domains` phase as completed
 
 ---
 
-## Phase 6: Sequential Domain Agent Dispatch
+## Phase 6a: Level 1 Sequential Dispatch
 
-This is the core of the operation. For EACH applicable domain, dispatch an agent using the **Task tool** — one at a time, sequentially. Wait for each agent to complete before dispatching the next.
+This is the core of the operation. For EACH applicable Level 1 domain, dispatch an agent using the **Task tool** — one at a time, sequentially. Wait for each agent to complete before dispatching the next.
 
 Each agent is dispatched using the **Task tool** (NOT TaskCreate — that's for task lists).
 
@@ -463,20 +500,129 @@ for each applicable domain in order (01 through 09):
   1. Dispatch agent with Task tool (blocking — run_in_background: false)
   2. When agent returns, extract JSON findings from its response
   3. Parse and validate JSON
-  4. If valid: append findings to ALL_FINDINGS
+  4. If valid: append findings to ALL_L1_FINDINGS
   5. If invalid: mark domain as FAILED with reason "Agent did not return valid JSON"
   6. Proceed to next domain
 ```
 
 Do NOT dispatch the next domain until the current one completes.
 
-Store all collected findings in a master array called `ALL_FINDINGS`.
+Store all collected findings in a master array called `ALL_L1_FINDINGS`.
+
+### State Checkpoint (after each L1 domain)
+
+After each domain agent returns and its findings are parsed:
+1. Read `state.json`
+2. Move the domain slug from `level1_dispatch.domains_pending` to `level1_dispatch.domains_completed`
+3. Append the parsed findings to `findings.level1`
+4. Write updated `state.json`
+
+When all L1 domains complete:
+1. Set `level1_dispatch.status` to `"completed"`
+2. Store `ALL_L1_FINDINGS` = all Level 1 findings (for passing to L2 agents)
+3. Write updated `state.json`
+
+---
+
+## Phase 6b: Level 2 Sequential Dispatch
+
+Level 2 agents run after ALL Level 1 agents complete. They receive the full Level 1 findings as additional context.
+
+### Level 2 Agent Prompt Template
+
+For each Level 2 domain, use this prompt template (extends the Level 1 template):
+
+```
+You are a Night Shift Level 2 enhancement agent for: {DOMAIN_NAME}
+
+## Your Mission
+Analyze the codebase at `{PROJECT_ROOT}` and the Level 1 audit findings below
+to produce {DOMAIN_SPECIFIC} recommendations.
+Return your findings as a JSON array.
+
+## Analysis Philosophy
+You are a senior engineer with unlimited time and full codebase access.
+
+**Multi-pass analysis:**
+1. REVIEW: Study the Level 1 findings to understand the codebase state
+2. DISCOVER: Glob/Grep to find relevant code patterns
+3. READ: Read key files in full — understand code, don't just pattern-match
+4. SYNTHESIZE: Combine L1 findings with your own analysis
+5. REPORT: Rich evidence with code snippets and specific recommendations
+
+**Rules:**
+- No file read limit. No finding cap. Be thorough.
+- WebSearch to verify best practices and research approaches.
+- Read code, don't guess from grep patterns.
+- Evidence should include code snippets (up to 500 chars).
+- Recommendations must be specific and actionable.
+- You produce ADVISORY findings only — do NOT modify any files.
+
+## Level 1 Audit Findings
+{ALL_L1_FINDINGS as JSON array}
+
+## Stack Summary: {STACK_SUMMARY}
+## Stack Profile: {STACK_PROFILE as compact JSON}
+
+## Domain Instructions
+{Full contents of the Level 2 domain instruction file}
+
+## Output Format
+Same JSON finding format as Level 1:
+{"id":"DOMAIN-NNN","domain":"{domain-slug}","title":"max 80 chars","severity":"critical|high|medium|low","urgent":bool,"important":bool,"description":"What is wrong and why","file":"/path or null","line":N or null,"evidence":"max 500 chars — include code snippets","recommendation":"Specific fix","effort":"trivial|small|medium|large","category":"sub-category"}
+
+ID format: `{DOMAIN_SLUG}-001`, `{DOMAIN_SLUG}-002`, etc.
+
+## Rules
+1. Only report findings with evidence. No speculation.
+2. Respect the stack profile — skip inapplicable checks.
+3. Be thorough. Read files, trace data flows, verify with WebSearch.
+4. Return ONLY the JSON array. No preamble, no explanation outside the JSON.
+```
+
+### Special handling for Domain 15 (PR Code Review)
+
+Domain 15 uses a modified prompt. It does NOT include Level 1 findings (it is independent). Replace the "Level 1 Audit Findings" section with:
+
+```
+## Additional Instructions for PR Code Review
+- Use `gh pr list` and `gh pr diff` via Bash tool to access PR data
+- Create review files at `{REPORT_DIR}/pr-reviews/PR-{number}-review.md` using the Write tool
+- Create the pr-reviews directory first: `mkdir -p {REPORT_DIR}/pr-reviews`
+- Follow the superpowers:requesting-code-review methodology for structured reviews
+- Return JSON findings AND write review files — both are required deliverables
+```
+
+### Dispatch Configuration (Level 2)
+
+Same as Level 1:
+- `subagent_type`: `"general-purpose"`
+- `run_in_background`: `false`
+- `max_turns`: `120`
+- `model`: `"opus"`
+
+### Sequential Loop (Level 2)
+
+```
+for each applicable Level 2 domain in order (10 through 15):
+  1. Dispatch agent with Task tool (blocking)
+  2. When agent returns, extract JSON findings
+  3. Parse and validate JSON
+  4. If valid: append findings to ALL_L2_FINDINGS
+  5. If invalid: mark domain as FAILED
+  6. Update state.json (move domain to completed, append findings to findings.level2)
+  7. Proceed to next domain
+```
+
+When all L2 domains complete:
+1. Set `level2_dispatch.status` to `"completed"`
+2. Write updated `state.json`
 
 ---
 
 ## Phase 7: Validate Collected Results
 
-After the sequential loop in Phase 6, validate `ALL_FINDINGS`:
+After the sequential loops in Phase 6a and 6b, validate `ALL_FINDINGS` (combined L1 + L2):
 
 1. Verify each finding has required fields: `id`, `domain`, `title`, `severity`, `description`
 2. Strip findings missing required fields (log a warning)
@@ -656,7 +802,7 @@ Write the following markdown to `${REPORT_DIR}/${REPORT_DATE}.md`:
 
 ## Skipped Domains
 
-{If none skipped: "_All 9 domains were audited._"}
+{If none skipped: "_All 15 domains were audited._"}
 
 {For each skipped/failed/timed-out domain:}
 | Domain | Reason |
@@ -680,7 +826,7 @@ Write the following markdown to `${REPORT_DIR}/${REPORT_DATE}.md`:
 ---
 
 _Report generated by Night Shift v2.0 on {REPORT_DATE} at {current_time}._
-_Duration: {DURATION formatted}. Domains audited: {domains_run}/9._
+_Duration: {DURATION formatted}. Domains audited: {domains_run}/15._
 ```
 
 Write this report using the Write tool.
@@ -743,7 +889,7 @@ Night Shift Report — {REPORT_DATE}
 Project: {PROJECT_NAME}
 Stack: {STACK_SUMMARY}
 Duration: {DURATION formatted}
-Domains: {domains_run}/9
+Domains: {domains_run}/15
 
 Dashboard:
 {For each domain that ran:}
@@ -848,9 +994,10 @@ Before starting, verify you understand the plan:
 - [ ] Phase 1: Run stack detection, build STACK_PROFILE JSON, update state
 - [ ] Phase 2: Create report directory, update state
 - [ ] Phase 3: Load history.json (or null), update state
-- [ ] Phase 4: Read all 9 domain files (parallel read), update state
-- [ ] Phase 5: Filter to applicable domains, update state
-- [ ] Phase 6: Dispatch agents sequentially (one at a time, blocking, Opus, 120 turns), update state after each domain
+- [ ] Phase 4: Read all 15 domain files (parallel read), update state
+- [ ] Phase 5: Filter to applicable domains (L1 + L2), update state
+- [ ] Phase 6a: Dispatch L1 agents sequentially (one at a time, blocking, Opus, 120 turns), update state after each domain
+- [ ] Phase 6b: Dispatch L2 agents sequentially (receive L1 findings as context), update state after each domain
 - [ ] Phase 7: Validate collected results, update state
 - [ ] Phase 8: Critical alert if needed (Slack), update state
 - [ ] Phase 9: Classify into urgency matrix, update state
