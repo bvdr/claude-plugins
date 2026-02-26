@@ -149,7 +149,7 @@ fi
 
 # --- Load permission policy ---
 PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-POLICY_FILE="$PLUGIN_DIR/hooks/permission-policy.md"
+POLICY_FILE="$PLUGIN_DIR/hooks/permission-policy.xml"
 
 # Fallback to old location if not found in hooks/
 if [[ ! -f "$POLICY_FILE" ]]; then
