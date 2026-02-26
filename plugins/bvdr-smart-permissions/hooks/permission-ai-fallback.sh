@@ -73,6 +73,7 @@ esac
 # Check that at least one provider is available
 has_anthropic_key() { [[ -n "${ANTHROPIC_API_KEY:-}" ]]; }
 has_gemini_key() { [[ -n "${GEMINI_API_KEY:-}" ]]; }
+has_gemini_cli() { command -v gemini &>/dev/null; }
 has_ollama() { command -v ollama &>/dev/null; }
 has_claude_cli() { command -v claude &>/dev/null; }
 
@@ -80,10 +81,10 @@ if [[ "$PROVIDER" == "claude" ]] && ! has_anthropic_key && ! has_claude_cli; the
   fail_open "Provider 'claude': neither ANTHROPIC_API_KEY nor claude CLI available"
 elif [[ "$PROVIDER" == "ollama" ]] && ! has_ollama; then
   fail_open "Provider 'ollama': ollama CLI not found"
-elif [[ "$PROVIDER" == "gemini" ]] && ! has_gemini_key; then
-  fail_open "Provider 'gemini': GEMINI_API_KEY not set"
-elif [[ "$PROVIDER" == "auto" ]] && ! has_anthropic_key && ! has_gemini_key && ! has_ollama && ! has_claude_cli; then
-  fail_open "Provider 'auto': no providers available (need ANTHROPIC_API_KEY, GEMINI_API_KEY, ollama, or claude CLI)"
+elif [[ "$PROVIDER" == "gemini" ]] && ! has_gemini_cli && ! has_gemini_key; then
+  fail_open "Provider 'gemini': neither gemini CLI nor GEMINI_API_KEY available"
+elif [[ "$PROVIDER" == "auto" ]] && ! has_anthropic_key && ! has_gemini_cli && ! has_gemini_key && ! has_ollama && ! has_claude_cli; then
+  fail_open "Provider 'auto': no providers available (need ANTHROPIC_API_KEY, GEMINI_API_KEY, gemini CLI, ollama, or claude CLI)"
 fi
 
 # --- Parse input ---
@@ -253,7 +254,38 @@ call_ollama() {
   return 1
 }
 
-call_gemini() {
+call_gemini_cli() {
+  # Gemini CLI (uses `gemini -p` for non-interactive mode)
+  local tmp_file="/tmp/smart-permissions-response.$$"
+  local gemini_pid watchdog_pid exit_code
+
+  gemini -p "$PROMPT" 2>/dev/null > "$tmp_file" &
+  gemini_pid=$!
+  ( sleep "$INTERNAL_TIMEOUT" && kill "$gemini_pid" 2>/dev/null ) &
+  watchdog_pid=$!
+  wait "$gemini_pid" 2>/dev/null
+  exit_code=$?
+  kill "$watchdog_pid" 2>/dev/null
+  wait "$watchdog_pid" 2>/dev/null
+
+  if [[ $exit_code -ne 0 ]]; then
+    rm -f "$tmp_file"
+    if [[ $exit_code -eq 137 || $exit_code -eq 143 ]]; then
+      log "gemini CLI: timed out after ${INTERNAL_TIMEOUT}s"
+    else
+      log "gemini CLI: failed (exit code $exit_code)"
+    fi
+    return 1
+  fi
+
+  RESPONSE=$(cat "$tmp_file" 2>/dev/null)
+  rm -f "$tmp_file"
+  [[ -n "$RESPONSE" ]] && return 0
+  log "gemini CLI: empty response"
+  return 1
+}
+
+call_gemini_api() {
   # Google Gemini REST API
   local api_payload api_response text parts_len
 
@@ -320,14 +352,20 @@ case "$PROVIDER" in
     call_ollama || fail_open "ollama failed"
     ;;
   gemini)
-    call_gemini || fail_open "gemini API failed"
+    if has_gemini_cli; then
+      call_gemini_cli || { has_gemini_key && call_gemini_api; } || fail_open "All gemini providers failed"
+    else
+      call_gemini_api || fail_open "gemini API failed"
+    fi
     ;;
   auto)
-    # Try providers in order: claude API → gemini → ollama → claude CLI
+    # Try providers in order: claude API → gemini CLI → gemini API → ollama → claude CLI
     got_response=false
     if has_anthropic_key && call_claude_api; then
       got_response=true
-    elif has_gemini_key && call_gemini; then
+    elif has_gemini_cli && call_gemini_cli; then
+      got_response=true
+    elif has_gemini_key && call_gemini_api; then
       got_response=true
     elif has_ollama && call_ollama; then
       got_response=true

@@ -35,8 +35,8 @@ AI fallback that evaluates ambiguous tool calls against `permission-policy.md`. 
 |----------|-----|-------|-------------|
 | `claude` (default) | Anthropic API via `curl`, falls back to `claude` CLI | ~1-2s (API) / ~8-10s (CLI) | `ANTHROPIC_API_KEY` or `claude` CLI |
 | `ollama` | Local inference via `ollama run` | Varies by model | `ollama` CLI running locally |
-| `gemini` | Google Gemini REST API via `curl` | ~1-3s | `GEMINI_API_KEY` |
-| `auto` | Tries claude API → gemini → ollama → claude CLI | Best available | Any one of the above |
+| `gemini` | Gemini CLI, falls back to REST API | ~2-5s (CLI) / ~1-3s (API) | `gemini` CLI or `GEMINI_API_KEY` |
+| `auto` | Tries claude API → gemini CLI → gemini API → ollama → claude CLI | Best available | Any one of the above |
 
 Fail-open: if anything breaks (missing deps, timeout, parse error), shows normal dialog.
 
@@ -75,18 +75,27 @@ export SMART_PERMISSIONS_OLLAMA_MODEL="qwen2.5-coder:1.5b"
 
 ### Gemini
 
-Requires a [Google AI Studio](https://aistudio.google.com/apikey) API key:
+Tries the [Gemini CLI](https://github.com/google-gemini/gemini-cli) first (`gemini -p`), falls back to REST API if the CLI isn't installed.
 
 ```bash
-export GEMINI_API_KEY="your_key_here"
 export SMART_PERMISSIONS_PROVIDER="gemini"
-# Optional: override the model (default: gemini-2.5-flash)
+# Optional: override the API model (default: gemini-2.5-flash)
 export SMART_PERMISSIONS_GEMINI_MODEL="gemini-2.5-flash"
+```
+
+**CLI path** — install the Gemini CLI:
+```bash
+npm install -g @google/gemini-cli
+```
+
+**API path** — set a [Google AI Studio](https://aistudio.google.com/apikey) API key:
+```bash
+export GEMINI_API_KEY="your_key_here"
 ```
 
 ### Auto mode
 
-Tries providers in order until one succeeds: Claude API → Gemini → Ollama → Claude CLI. Useful if you have multiple providers available and want automatic failover.
+Tries providers in order until one succeeds: Claude API → Gemini CLI → Gemini API → Ollama → Claude CLI. Useful if you have multiple providers available and want automatic failover.
 
 ```bash
 export SMART_PERMISSIONS_PROVIDER="auto"
@@ -148,13 +157,15 @@ Composes with `interactive-notifications`: smart-permissions runs first. If it d
 - Layer 2 needs at least one provider:
   - `ANTHROPIC_API_KEY` env var (Claude API — fast, ~1-2s)
   - `claude` CLI installed (Claude CLI — slower, ~8-10s)
-  - `ollama` CLI with a model pulled (local inference)
+  - `gemini` CLI installed (Gemini CLI — ~2-5s)
   - `GEMINI_API_KEY` env var (Gemini API — fast, ~1-3s)
+  - `ollama` CLI with a model pulled (local inference)
 
 ## Changelog
 
 ### v2.0.0
-- Multi-provider support for Layer 2: Claude (API + CLI), Ollama, Gemini, or auto-failover
+- Multi-provider support for Layer 2: Claude (API + CLI), Gemini (CLI + API), Ollama, or auto-failover
+- Gemini provider tries `gemini` CLI first, falls back to REST API
 - New env vars: `SMART_PERMISSIONS_PROVIDER`, `SMART_PERMISSIONS_CLAUDE_MODEL`, `SMART_PERMISSIONS_OLLAMA_MODEL`, `SMART_PERMISSIONS_GEMINI_MODEL`
 - Default behavior unchanged (Claude provider, same as before)
 
