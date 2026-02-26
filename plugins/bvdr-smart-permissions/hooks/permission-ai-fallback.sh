@@ -1,8 +1,14 @@
 #!/usr/bin/env bash
-# Layer 2: AI-powered permission evaluation (~8-10s)
+# Layer 2: AI-powered permission evaluation
 # Only fires when Layer 1 didn't decide (passthrough) and a permission dialog would appear.
-# Uses Claude Haiku to evaluate against permission-policy.md.
+# Evaluates tool calls against permission-policy.md using a configurable AI provider.
 # Fail-open: any error → no output → normal permission dialog shown.
+#
+# Provider selection via SMART_PERMISSIONS_PROVIDER env var:
+#   claude  — Anthropic API (needs ANTHROPIC_API_KEY) or claude CLI fallback (default)
+#   ollama  — Local Ollama (needs ollama running)
+#   gemini  — Google Gemini API (needs GEMINI_API_KEY)
+#   auto    — tries claude API → gemini → ollama → claude CLI
 
 set -euo pipefail
 
@@ -17,6 +23,27 @@ if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
 else
   CLAUDE_CONFIG_DIR="$HOME/.claude"
 fi
+
+SETTINGS_FILE="$CLAUDE_CONFIG_DIR/settings.json"
+
+# --- Env loader: check environment first, then ~/.claude/settings.json env section ---
+load_env() {
+  local var_name="$1"
+  local val="${!var_name:-}"
+  if [[ -n "$val" ]]; then
+    echo "$val"
+    return
+  fi
+  # Fall back to settings.json env section (requires jq, but we check jq later —
+  # if jq isn't available this silently returns empty, which is fine)
+  if [[ -f "$SETTINGS_FILE" ]]; then
+    val=$(jq -r --arg k "$var_name" '.env[$k] // empty' "$SETTINGS_FILE" 2>/dev/null)
+    if [[ -n "$val" ]]; then
+      echo "$val"
+      return
+    fi
+  fi
+}
 
 LOG_DIR="$CLAUDE_CONFIG_DIR/hooks"
 LOG_FILE="$LOG_DIR/smart-permissions.log"
@@ -49,8 +76,50 @@ if ! command -v jq &>/dev/null; then
   fail_open "jq not found"
 fi
 
-if [[ -z "${ANTHROPIC_API_KEY:-}" ]] && ! command -v claude &>/dev/null; then
-  fail_open "Neither ANTHROPIC_API_KEY nor claude CLI available"
+# --- Provider configuration (env → settings.json → defaults) ---
+PROVIDER=$(load_env "SMART_PERMISSIONS_PROVIDER")
+PROVIDER="${PROVIDER:-claude}"
+CLAUDE_API_MODEL=$(load_env "SMART_PERMISSIONS_CLAUDE_MODEL")
+CLAUDE_API_MODEL="${CLAUDE_API_MODEL:-claude-haiku-4-5-20251001}"
+OLLAMA_MODEL=$(load_env "SMART_PERMISSIONS_OLLAMA_MODEL")
+OLLAMA_MODEL="${OLLAMA_MODEL:-qwen2.5-coder:7b}"
+GEMINI_MODEL=$(load_env "SMART_PERMISSIONS_GEMINI_MODEL")
+GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.5-flash}"
+GEMINI_API_URL="https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent"
+
+# Resolve API keys (env → settings.json)
+_anthropic_key=$(load_env "ANTHROPIC_API_KEY")
+if [[ -n "$_anthropic_key" ]]; then
+  export ANTHROPIC_API_KEY="$_anthropic_key"
+fi
+_gemini_key=$(load_env "GEMINI_API_KEY")
+if [[ -n "$_gemini_key" ]]; then
+  export GEMINI_API_KEY="$_gemini_key"
+fi
+
+# Validate provider early
+case "$PROVIDER" in
+  claude|ollama|gemini|auto) ;;
+  *)
+    fail_open "Unknown provider '$PROVIDER' — must be claude, ollama, gemini, or auto"
+    ;;
+esac
+
+# Check that at least one provider is available
+has_anthropic_key() { [[ -n "${ANTHROPIC_API_KEY:-}" ]]; }
+has_gemini_key() { [[ -n "${GEMINI_API_KEY:-}" ]]; }
+has_gemini_cli() { command -v gemini &>/dev/null; }
+has_ollama() { command -v ollama &>/dev/null; }
+has_claude_cli() { command -v claude &>/dev/null; }
+
+if [[ "$PROVIDER" == "claude" ]] && ! has_anthropic_key && ! has_claude_cli; then
+  fail_open "Provider 'claude': neither ANTHROPIC_API_KEY nor claude CLI available"
+elif [[ "$PROVIDER" == "ollama" ]] && ! has_ollama; then
+  fail_open "Provider 'ollama': ollama CLI not found"
+elif [[ "$PROVIDER" == "gemini" ]] && ! has_gemini_cli && ! has_gemini_key; then
+  fail_open "Provider 'gemini': neither gemini CLI nor GEMINI_API_KEY available"
+elif [[ "$PROVIDER" == "auto" ]] && ! has_anthropic_key && ! has_gemini_cli && ! has_gemini_key && ! has_ollama && ! has_claude_cli; then
+  fail_open "Provider 'auto': no providers available (need ANTHROPIC_API_KEY, GEMINI_API_KEY, gemini CLI, ollama, or claude CLI)"
 fi
 
 # --- Parse input ---
@@ -80,10 +149,15 @@ fi
 
 # --- Load permission policy ---
 PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-POLICY_FILE="$PLUGIN_DIR/permission-policy.md"
+POLICY_FILE="$PLUGIN_DIR/hooks/permission-policy.xml"
+
+# Fallback to old location if not found in hooks/
+if [[ ! -f "$POLICY_FILE" ]]; then
+  POLICY_FILE="$PLUGIN_DIR/permission-policy.md"
+fi
 
 if [[ ! -f "$POLICY_FILE" ]]; then
-  fail_open "permission-policy.md not found at $POLICY_FILE"
+  fail_open "permission-policy.md not found"
 fi
 
 POLICY=$(cat "$POLICY_FILE")
@@ -105,82 +179,245 @@ Based on the policy above, should this tool call be allowed?
 Respond with EXACTLY one word on the first line: ALLOW or DENY
 Then on the second line, a brief reason (one sentence)."
 
-# --- Call Claude Haiku ---
-# Fast path: direct API call via curl (~1-2s) when ANTHROPIC_API_KEY is set.
-# Slow path: claude CLI (~8-10s) as fallback — spawns full Node.js runtime.
-RESPONSE=""
+# ============================================================
+# Provider functions — each sets RESPONSE or calls fail_open
+# ============================================================
 
-if [[ -n "${ANTHROPIC_API_KEY:-}" ]]; then
-  # Build JSON payload — jq handles escaping the prompt safely
-  API_PAYLOAD=$(jq -n \
+call_claude_api() {
+  # Direct Anthropic API call via curl (~1-2s)
+  local api_payload api_response api_error
+  api_payload=$(jq -n \
     --arg prompt "$PROMPT" \
+    --arg model "$CLAUDE_API_MODEL" \
     '{
-      model: "claude-haiku-4-5-20251001",
+      model: $model,
       max_tokens: 100,
       messages: [{ role: "user", content: $prompt }]
     }')
 
-  API_RESPONSE=$(curl -s \
+  api_response=$(curl -s \
     --max-time "$INTERNAL_TIMEOUT" \
     -H "x-api-key: $ANTHROPIC_API_KEY" \
     -H "anthropic-version: 2023-06-01" \
     -H "content-type: application/json" \
-    -d "$API_PAYLOAD" \
+    -d "$api_payload" \
     "https://api.anthropic.com/v1/messages" 2>/dev/null) || {
-    EXIT_CODE=$?
-    # curl exit 28 = timeout
-    if [[ $EXIT_CODE -eq 28 ]]; then
-      fail_open "API call timed out after ${INTERNAL_TIMEOUT}s"
+    local exit_code=$?
+    if [[ $exit_code -eq 28 ]]; then
+      log "claude API: timed out after ${INTERNAL_TIMEOUT}s"
     else
-      fail_open "API call failed (exit code $EXIT_CODE)"
+      log "claude API: curl failed (exit code $exit_code)"
     fi
+    return 1
   }
 
-  # Extract text from API response — handle both success and error shapes
-  # Use printf instead of echo: the JSON contains \n sequences that zsh's echo
-  # would interpret as literal newlines, breaking jq parsing.
-  RESPONSE=$(printf '%s\n' "$API_RESPONSE" | jq -r '.content[0].text // empty' 2>/dev/null)
+  # Extract text — use printf instead of echo: the JSON contains \n sequences
+  # that zsh's echo would interpret as literal newlines, breaking jq parsing.
+  RESPONSE=$(printf '%s\n' "$api_response" | jq -r '.content[0].text // empty' 2>/dev/null)
 
   if [[ -z "$RESPONSE" ]]; then
-    # Check for API error message
-    API_ERROR=$(printf '%s\n' "$API_RESPONSE" | jq -r '.error.message // empty' 2>/dev/null)
-    if [[ -n "$API_ERROR" ]]; then
-      fail_open "API error: $API_ERROR"
-    fi
-    fail_open "Empty response from API"
-  fi
-else
-  # Fallback: claude CLI (slower — full Node.js runtime boot)
-  # --no-session-persistence: don't pollute session history
-  # --max-turns 1: single response, no back-and-forth
-  # Background watchdog kills the CLI if it exceeds INTERNAL_TIMEOUT (macOS has no `timeout` command).
-  echo "$PROMPT" | claude --print --model haiku --no-session-persistence --max-turns 1 2>/dev/null > /tmp/smart-permissions-response.$$ &
-  CLAUDE_PID=$!
-  ( sleep "$INTERNAL_TIMEOUT" && kill "$CLAUDE_PID" 2>/dev/null ) &
-  WATCHDOG_PID=$!
-  wait "$CLAUDE_PID" 2>/dev/null
-  EXIT_CODE=$?
-  kill "$WATCHDOG_PID" 2>/dev/null
-  wait "$WATCHDOG_PID" 2>/dev/null
-
-  if [[ $EXIT_CODE -ne 0 ]]; then
-    rm -f "/tmp/smart-permissions-response.$$"
-    if [[ $EXIT_CODE -eq 137 || $EXIT_CODE -eq 143 ]]; then
-      fail_open "claude CLI timed out after ${INTERNAL_TIMEOUT}s"
+    api_error=$(printf '%s\n' "$api_response" | jq -r '.error.message // empty' 2>/dev/null)
+    if [[ -n "$api_error" ]]; then
+      log "claude API error: $api_error"
     else
-      fail_open "claude CLI failed (exit code $EXIT_CODE)"
+      log "claude API: empty response"
     fi
+    return 1
+  fi
+  return 0
+}
+
+call_claude_cli() {
+  # Fallback: claude CLI (slower — full Node.js runtime boot ~8-10s)
+  local tmp_file="/tmp/smart-permissions-response.$$"
+  local claude_pid watchdog_pid exit_code
+
+  echo "$PROMPT" | claude --print --model haiku --no-session-persistence --max-turns 1 2>/dev/null > "$tmp_file" &
+  claude_pid=$!
+  ( sleep "$INTERNAL_TIMEOUT" && kill "$claude_pid" 2>/dev/null ) &
+  watchdog_pid=$!
+  wait "$claude_pid" 2>/dev/null
+  exit_code=$?
+  kill "$watchdog_pid" 2>/dev/null
+  wait "$watchdog_pid" 2>/dev/null
+
+  if [[ $exit_code -ne 0 ]]; then
+    rm -f "$tmp_file"
+    if [[ $exit_code -eq 137 || $exit_code -eq 143 ]]; then
+      log "claude CLI: timed out after ${INTERNAL_TIMEOUT}s"
+    else
+      log "claude CLI: failed (exit code $exit_code)"
+    fi
+    return 1
   fi
 
-  RESPONSE=$(cat "/tmp/smart-permissions-response.$$" 2>/dev/null)
-  rm -f "/tmp/smart-permissions-response.$$"
-fi
+  RESPONSE=$(cat "$tmp_file" 2>/dev/null)
+  rm -f "$tmp_file"
+  [[ -n "$RESPONSE" ]] && return 0
+  log "claude CLI: empty response"
+  return 1
+}
+
+call_ollama() {
+  # Local Ollama inference
+  local tmp_file="/tmp/smart-permissions-response.$$"
+  local ollama_pid watchdog_pid exit_code
+
+  ollama run "$OLLAMA_MODEL" "$PROMPT" 2>/dev/null > "$tmp_file" &
+  ollama_pid=$!
+  ( sleep "$INTERNAL_TIMEOUT" && kill "$ollama_pid" 2>/dev/null ) &
+  watchdog_pid=$!
+  wait "$ollama_pid" 2>/dev/null
+  exit_code=$?
+  kill "$watchdog_pid" 2>/dev/null
+  wait "$watchdog_pid" 2>/dev/null
+
+  if [[ $exit_code -ne 0 ]]; then
+    rm -f "$tmp_file"
+    if [[ $exit_code -eq 137 || $exit_code -eq 143 ]]; then
+      log "ollama: timed out after ${INTERNAL_TIMEOUT}s"
+    else
+      log "ollama: failed (exit code $exit_code)"
+    fi
+    return 1
+  fi
+
+  RESPONSE=$(cat "$tmp_file" 2>/dev/null)
+  rm -f "$tmp_file"
+  [[ -n "$RESPONSE" ]] && return 0
+  log "ollama: empty response"
+  return 1
+}
+
+call_gemini_cli() {
+  # Gemini CLI (uses `gemini -p` for non-interactive mode)
+  local tmp_file="/tmp/smart-permissions-response.$$"
+  local gemini_pid watchdog_pid exit_code
+
+  gemini -p "$PROMPT" 2>/dev/null > "$tmp_file" &
+  gemini_pid=$!
+  ( sleep "$INTERNAL_TIMEOUT" && kill "$gemini_pid" 2>/dev/null ) &
+  watchdog_pid=$!
+  wait "$gemini_pid" 2>/dev/null
+  exit_code=$?
+  kill "$watchdog_pid" 2>/dev/null
+  wait "$watchdog_pid" 2>/dev/null
+
+  if [[ $exit_code -ne 0 ]]; then
+    rm -f "$tmp_file"
+    if [[ $exit_code -eq 137 || $exit_code -eq 143 ]]; then
+      log "gemini CLI: timed out after ${INTERNAL_TIMEOUT}s"
+    else
+      log "gemini CLI: failed (exit code $exit_code)"
+    fi
+    return 1
+  fi
+
+  RESPONSE=$(cat "$tmp_file" 2>/dev/null)
+  rm -f "$tmp_file"
+  [[ -n "$RESPONSE" ]] && return 0
+  log "gemini CLI: empty response"
+  return 1
+}
+
+call_gemini_api() {
+  # Google Gemini REST API
+  local api_payload api_response text parts_len
+
+  api_payload=$(jq -n \
+    --arg prompt "$PROMPT" \
+    '{
+      contents: [{ parts: [{ text: $prompt }] }],
+      generationConfig: { maxOutputTokens: 256, temperature: 0.1 }
+    }')
+
+  api_response=$(curl -s \
+    --max-time "$INTERNAL_TIMEOUT" \
+    -H "Content-Type: application/json" \
+    -d "$api_payload" \
+    "${GEMINI_API_URL}?key=${GEMINI_API_KEY}" 2>/dev/null) || {
+    local exit_code=$?
+    if [[ $exit_code -eq 28 ]]; then
+      log "gemini: timed out after ${INTERNAL_TIMEOUT}s"
+    else
+      log "gemini: curl failed (exit code $exit_code)"
+    fi
+    return 1
+  }
+
+  # Extract text — for thinking models, skip thought parts and grab the last non-thought text
+  # Try the last part first (most models), then walk backwards for thinking models
+  text=$(printf '%s\n' "$api_response" | jq -r '
+    .candidates[0].content.parts
+    | to_entries
+    | map(select(.value.thought != true and .value.text != null))
+    | last
+    | .value.text // empty
+  ' 2>/dev/null)
+
+  if [[ -z "$text" ]]; then
+    local api_error
+    api_error=$(printf '%s\n' "$api_response" | jq -r '.error.message // empty' 2>/dev/null)
+    if [[ -n "$api_error" ]]; then
+      log "gemini API error: $api_error"
+    else
+      log "gemini: empty/unparseable response"
+    fi
+    return 1
+  fi
+
+  RESPONSE="$text"
+  return 0
+}
+
+# ============================================================
+# Execute provider(s)
+# ============================================================
+RESPONSE=""
+
+case "$PROVIDER" in
+  claude)
+    if has_anthropic_key; then
+      call_claude_api || call_claude_cli || fail_open "All claude providers failed"
+    else
+      call_claude_cli || fail_open "claude CLI failed"
+    fi
+    ;;
+  ollama)
+    call_ollama || fail_open "ollama failed"
+    ;;
+  gemini)
+    if has_gemini_cli; then
+      call_gemini_cli || { has_gemini_key && call_gemini_api; } || fail_open "All gemini providers failed"
+    else
+      call_gemini_api || fail_open "gemini API failed"
+    fi
+    ;;
+  auto)
+    # Try providers in order: claude API → gemini CLI → gemini API → ollama → claude CLI
+    got_response=false
+    if has_anthropic_key && call_claude_api; then
+      got_response=true
+    elif has_gemini_cli && call_gemini_cli; then
+      got_response=true
+    elif has_gemini_key && call_gemini_api; then
+      got_response=true
+    elif has_ollama && call_ollama; then
+      got_response=true
+    elif has_claude_cli && call_claude_cli; then
+      got_response=true
+    fi
+    if [[ "$got_response" == "false" ]]; then
+      fail_open "All providers failed (auto mode)"
+    fi
+    ;;
+esac
 
 if [[ -z "$RESPONSE" ]]; then
-  fail_open "Empty response from claude CLI"
+  fail_open "Empty response from $PROVIDER"
 fi
 
-log "AI response: $(echo "$RESPONSE" | head -2 | tr '\n' ' ')"
+log "AI response ($PROVIDER): $(echo "$RESPONSE" | head -2 | tr '\n' ' ')"
 
 # --- Parse AI decision ---
 FIRST_LINE=$(echo "$RESPONSE" | head -1 | tr -d '[:space:]')
