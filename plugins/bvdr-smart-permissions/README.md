@@ -42,25 +42,27 @@ Fail-open: if anything breaks (missing deps, timeout, parse error), shows normal
 
 ## Provider Configuration
 
-Set the provider via environment variable:
+All configuration is done via the `env` section of `~/.claude/settings.json`. These environment variables are automatically available to hook scripts:
 
-```bash
-# Add to your ~/.zshrc or ~/.bashrc
-export SMART_PERMISSIONS_PROVIDER="claude"   # default
-export SMART_PERMISSIONS_PROVIDER="ollama"   # use local Ollama
-export SMART_PERMISSIONS_PROVIDER="gemini"   # use Gemini API
-export SMART_PERMISSIONS_PROVIDER="auto"     # try all, first success wins
+```jsonc
+// ~/.claude/settings.json
+{
+  "env": {
+    "SMART_PERMISSIONS_PROVIDER": "gemini",          // claude (default), ollama, gemini, or auto
+    "SMART_PERMISSIONS_CLAUDE_MODEL": "claude-haiku-4-5-20251001",  // optional
+    "SMART_PERMISSIONS_OLLAMA_MODEL": "qwen2.5-coder:7b",          // optional
+    "SMART_PERMISSIONS_GEMINI_MODEL": "gemini-2.5-flash",          // optional
+    "ANTHROPIC_API_KEY": "sk-ant-...",               // for claude API path
+    "GEMINI_API_KEY": "your_key_here"                // for gemini API path
+  }
+}
 ```
+
+Only set the variables you need — defaults work out of the box if the provider is available.
 
 ### Claude (default)
 
 No extra config needed if `ANTHROPIC_API_KEY` is set (fast path) or `claude` CLI is installed (slow path).
-
-```bash
-export ANTHROPIC_API_KEY="sk-ant-..."
-# Optional: override the model (default: claude-haiku-4-5-20251001)
-export SMART_PERMISSIONS_CLAUDE_MODEL="claude-haiku-4-5-20251001"
-```
 
 ### Ollama
 
@@ -68,9 +70,6 @@ Requires [Ollama](https://ollama.ai) running locally with a model pulled:
 
 ```bash
 ollama pull qwen2.5-coder:7b
-export SMART_PERMISSIONS_PROVIDER="ollama"
-# Optional: override the model (default: qwen2.5-coder:7b)
-export SMART_PERMISSIONS_OLLAMA_MODEL="qwen2.5-coder:7b"
 ```
 
 **Model size matters:** The permission policy requires the model to parse a structured document and make nuanced allow/deny decisions. Small models (1.5B) may ignore policy rules and produce incorrect results. We recommend 7B+ parameters for reliable evaluation. Larger models like `llama3.1:8b` or `qwen2.5-coder:7b` work well.
@@ -79,29 +78,16 @@ export SMART_PERMISSIONS_OLLAMA_MODEL="qwen2.5-coder:7b"
 
 Tries the [Gemini CLI](https://github.com/google-gemini/gemini-cli) first (`gemini -p`), falls back to REST API if the CLI isn't installed.
 
-```bash
-export SMART_PERMISSIONS_PROVIDER="gemini"
-# Optional: override the API model (default: gemini-2.5-flash)
-export SMART_PERMISSIONS_GEMINI_MODEL="gemini-2.5-flash"
-```
-
 **CLI path** — install the Gemini CLI:
 ```bash
 npm install -g @google/gemini-cli
 ```
 
-**API path** — set a [Google AI Studio](https://aistudio.google.com/apikey) API key:
-```bash
-export GEMINI_API_KEY="your_key_here"
-```
+**API path** — set `GEMINI_API_KEY` in settings.json. Get a free key from [Google AI Studio](https://aistudio.google.com/apikey).
 
 ### Auto mode
 
 Tries providers in order until one succeeds: Claude API → Gemini CLI → Gemini API → Ollama → Claude CLI. Useful if you have multiple providers available and want automatic failover.
-
-```bash
-export SMART_PERMISSIONS_PROVIDER="auto"
-```
 
 ## What Gets Auto-Allowed (Layer 1)
 
@@ -139,9 +125,9 @@ Edit `permission-policy.md` to adjust the AI evaluation rules for Layer 2. This 
 
 ## Debug Logging
 
-Layer 1 logging (high frequency — gated behind env var):
-```bash
-export SMART_PERMISSIONS_DEBUG=1
+Layer 1 logging (high frequency — add to `env` in `~/.claude/settings.json`):
+```jsonc
+{ "env": { "SMART_PERMISSIONS_DEBUG": "1" } }
 ```
 
 Layer 2 logging (low frequency — always on):
