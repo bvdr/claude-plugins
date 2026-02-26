@@ -10,6 +10,7 @@ Respond with EXACTLY one word: **ALLOW** or **DENY**, followed by a brief reason
 - Creating/writing files in project directories
 - Editing files in project directories
 - Creating directories (mkdir)
+- Creating/reading/writing in system tmp directories (/tmp, $TMPDIR, /var/tmp) — generally safe
 
 ### Development Commands
 - Running tests (any framework)
