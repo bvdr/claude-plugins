@@ -263,7 +263,7 @@ call_ollama() {
   local tmp_file="/tmp/smart-permissions-response.$$"
   local ollama_pid watchdog_pid exit_code
 
-  echo "$PROMPT" | ollama run "$OLLAMA_MODEL" 2>/dev/null > "$tmp_file" &
+  ollama run "$OLLAMA_MODEL" "$PROMPT" 2>/dev/null > "$tmp_file" &
   ollama_pid=$!
   ( sleep "$INTERNAL_TIMEOUT" && kill "$ollama_pid" 2>/dev/null ) &
   watchdog_pid=$!
