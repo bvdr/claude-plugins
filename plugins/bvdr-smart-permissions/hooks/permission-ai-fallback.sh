@@ -16,13 +16,6 @@ set -euo pipefail
 # so we can log + clean up before the hook system kills us.
 INTERNAL_TIMEOUT=170
 
-# --- Provider configuration ---
-PROVIDER="${SMART_PERMISSIONS_PROVIDER:-claude}"
-CLAUDE_API_MODEL="${SMART_PERMISSIONS_CLAUDE_MODEL:-claude-haiku-4-5-20251001}"
-OLLAMA_MODEL="${SMART_PERMISSIONS_OLLAMA_MODEL:-qwen2.5-coder:7b}"
-GEMINI_MODEL="${SMART_PERMISSIONS_GEMINI_MODEL:-gemini-2.5-flash}"
-GEMINI_API_URL="https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent"
-
 # Derive config dir from plugin install path (e.g. ~/.claude/plugins/cache/... → ~/.claude)
 # Falls back to ~/.claude if CLAUDE_PLUGIN_ROOT is not set
 if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
@@ -30,6 +23,27 @@ if [[ -n "${CLAUDE_PLUGIN_ROOT:-}" ]]; then
 else
   CLAUDE_CONFIG_DIR="$HOME/.claude"
 fi
+
+SETTINGS_FILE="$CLAUDE_CONFIG_DIR/settings.json"
+
+# --- Env loader: check environment first, then ~/.claude/settings.json env section ---
+load_env() {
+  local var_name="$1"
+  local val="${!var_name:-}"
+  if [[ -n "$val" ]]; then
+    echo "$val"
+    return
+  fi
+  # Fall back to settings.json env section (requires jq, but we check jq later —
+  # if jq isn't available this silently returns empty, which is fine)
+  if [[ -f "$SETTINGS_FILE" ]]; then
+    val=$(jq -r --arg k "$var_name" '.env[$k] // empty' "$SETTINGS_FILE" 2>/dev/null)
+    if [[ -n "$val" ]]; then
+      echo "$val"
+      return
+    fi
+  fi
+}
 
 LOG_DIR="$CLAUDE_CONFIG_DIR/hooks"
 LOG_FILE="$LOG_DIR/smart-permissions.log"
@@ -60,6 +74,27 @@ fi
 # --- Check dependencies ---
 if ! command -v jq &>/dev/null; then
   fail_open "jq not found"
+fi
+
+# --- Provider configuration (env → settings.json → defaults) ---
+PROVIDER=$(load_env "SMART_PERMISSIONS_PROVIDER")
+PROVIDER="${PROVIDER:-claude}"
+CLAUDE_API_MODEL=$(load_env "SMART_PERMISSIONS_CLAUDE_MODEL")
+CLAUDE_API_MODEL="${CLAUDE_API_MODEL:-claude-haiku-4-5-20251001}"
+OLLAMA_MODEL=$(load_env "SMART_PERMISSIONS_OLLAMA_MODEL")
+OLLAMA_MODEL="${OLLAMA_MODEL:-qwen2.5-coder:7b}"
+GEMINI_MODEL=$(load_env "SMART_PERMISSIONS_GEMINI_MODEL")
+GEMINI_MODEL="${GEMINI_MODEL:-gemini-2.5-flash}"
+GEMINI_API_URL="https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent"
+
+# Resolve API keys (env → settings.json)
+_anthropic_key=$(load_env "ANTHROPIC_API_KEY")
+if [[ -n "$_anthropic_key" ]]; then
+  export ANTHROPIC_API_KEY="$_anthropic_key"
+fi
+_gemini_key=$(load_env "GEMINI_API_KEY")
+if [[ -n "$_gemini_key" ]]; then
+  export GEMINI_API_KEY="$_gemini_key"
 fi
 
 # Validate provider early

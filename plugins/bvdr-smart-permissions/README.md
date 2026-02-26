@@ -42,7 +42,7 @@ Fail-open: if anything breaks (missing deps, timeout, parse error), shows normal
 
 ## Provider Configuration
 
-All configuration is done via the `env` section of `~/.claude/settings.json`. These environment variables are automatically available to hook scripts:
+Configuration is resolved in order: **environment variable → `~/.claude/settings.json` env section → default**. Set values in whichever place suits your workflow:
 
 ```jsonc
 // ~/.claude/settings.json
