@@ -67,11 +67,13 @@ export SMART_PERMISSIONS_CLAUDE_MODEL="claude-haiku-4-5-20251001"
 Requires [Ollama](https://ollama.ai) running locally with a model pulled:
 
 ```bash
-ollama pull qwen2.5-coder:1.5b   # small, fast model — good for yes/no decisions
+ollama pull qwen2.5-coder:7b
 export SMART_PERMISSIONS_PROVIDER="ollama"
-# Optional: override the model (default: qwen2.5-coder:1.5b)
-export SMART_PERMISSIONS_OLLAMA_MODEL="qwen2.5-coder:1.5b"
+# Optional: override the model (default: qwen2.5-coder:7b)
+export SMART_PERMISSIONS_OLLAMA_MODEL="qwen2.5-coder:7b"
 ```
+
+**Model size matters:** The permission policy requires the model to parse a structured document and make nuanced allow/deny decisions. Small models (1.5B) may ignore policy rules and produce incorrect results. We recommend 7B+ parameters for reliable evaluation. Larger models like `llama3.1:8b` or `qwen2.5-coder:7b` work well.
 
 ### Gemini
 

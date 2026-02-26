@@ -19,7 +19,7 @@ INTERNAL_TIMEOUT=170
 # --- Provider configuration ---
 PROVIDER="${SMART_PERMISSIONS_PROVIDER:-claude}"
 CLAUDE_API_MODEL="${SMART_PERMISSIONS_CLAUDE_MODEL:-claude-haiku-4-5-20251001}"
-OLLAMA_MODEL="${SMART_PERMISSIONS_OLLAMA_MODEL:-qwen2.5-coder:1.5b}"
+OLLAMA_MODEL="${SMART_PERMISSIONS_OLLAMA_MODEL:-qwen2.5-coder:7b}"
 GEMINI_MODEL="${SMART_PERMISSIONS_GEMINI_MODEL:-gemini-2.5-flash}"
 GEMINI_API_URL="https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent"
 
