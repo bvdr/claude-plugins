@@ -70,6 +70,11 @@ A collection of Claude Code skills for macOS productivity and Slack integration.
 
 | Skill | Command | Description |
 |-------|---------|-------------|
+| Umami Hub | `/bvdr:using-umami` | Entry point for all Umami Analytics operations — routes to setup, tracking, reports, or query skills |
+| Umami Setup | `/bvdr:umami-setup` | Connect to a self-hosted Umami instance, install tracker script, configure `.umami.json` |
+| Umami Track | `/bvdr:umami-track` | Implement tracking: custom events, user identification, data attributes, revenue, server-side events |
+| Umami Reports | `/bvdr:umami-reports` | Create and run 8 report types: funnel, journey, retention, goals, UTM, attribution, breakdown, revenue |
+| Umami Query | `/bvdr:umami-query` | Query stats, metrics, event data, sessions, realtime visitors via the Umami API |
 | Voice Alerts | `/bvdr:enable-voice-alerts` | Verbal notifications using macOS text-to-speech when Claude needs attention or completes tasks |
 | Setup Statusline | `/bvdr:setup-statusline` | Interactive wizard to configure a custom Claude Code statusline (folder display, git info, colors) |
 | Setup Slack Notifications | `/bvdr:setup-slack-notifications` | Interactive setup wizard for creating a Slack bot and configuring your environment |
@@ -136,6 +141,11 @@ plugins/
 │   └── manifest.json
 └── bvdr/                          # Skills collection
     ├── commands/                  # Skill markdown files
+    │   ├── using-umami.md           # Umami Analytics hub router
+    │   ├── umami-setup.md           # Umami setup & configuration
+    │   ├── umami-track.md           # Umami tracking implementation
+    │   ├── umami-reports.md         # Umami report creation & execution
+    │   ├── umami-query.md           # Umami data querying
     │   ├── enable-voice-alerts.md
     │   ├── setup-statusline.md
     │   ├── setup-slack-notifications.md
