@@ -1,7 +1,7 @@
 {
   "name": "bvdr",
-  "version": "1.0.0",
-  "description": "Claude Code skills collection: Slack notifications, statusline setup, voice alerts, and more",
+  "version": "1.1.0",
+  "description": "Claude Code skills collection: Umami Analytics, Slack notifications, statusline setup, voice alerts, and more",
   "author": {
     "name": "Bogdan Dragomir",
     "url": "https://github.com/bvdr"
