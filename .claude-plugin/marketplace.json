@@ -34,7 +34,7 @@
       "name": "bvdr-ideation-and-roadmap",
       "source": "./plugins/bvdr-ideation-and-roadmap",
       "description": "Deep AI-powered project ideation and roadmap generation with parallel subagents, competitive analysis, and interactive HTML reports",
-      "version": "1.0.0"
+      "version": "1.0.1"
     }
   ]
 }

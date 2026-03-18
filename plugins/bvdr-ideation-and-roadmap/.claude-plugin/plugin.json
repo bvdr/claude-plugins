@@ -1,6 +1,6 @@
 {
   "name": "bvdr-ideation-and-roadmap",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Deep AI-powered project ideation and roadmap generation with parallel subagents, competitive analysis, and interactive HTML reports",
   "author": {
     "name": "Bogdan Dragomir",
