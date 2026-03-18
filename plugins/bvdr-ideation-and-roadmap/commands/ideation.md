@@ -82,8 +82,9 @@ IDEATION TYPES (use with --only, comma-separated):
   Example: /ideation --only sec,perf
 
 OUTPUT:
-  .claude/ideation/report.html           Interactive HTML report
-  .claude/ideation/ideation.json         Machine-readable results
+  .claude/ideation/ideation-N/report.html   Interactive HTML report (N auto-increments)
+  .claude/ideation/ideation-N/ideation.json Machine-readable results
+  .claude/ideation/deep-analysis.json       Cached deep analysis (shared across runs)
 ```
 
 ---
@@ -104,15 +105,42 @@ basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 ```
 Store as `PROJECT_NAME`.
 
-**Set output directory:**
+**Set base output directory:**
 ```
-OUTPUT_DIR = {PROJECT_ROOT}/.claude/ideation
+BASE_DIR = {PROJECT_ROOT}/.claude/ideation
 ```
 
-**Create output directory:**
+**Create base directory:**
 ```bash
-mkdir -p "{OUTPUT_DIR}"
+mkdir -p "{BASE_DIR}"
 ```
+
+**Compute run directory with auto-increment:**
+
+Find the next available `ideation-N` folder inside `{BASE_DIR}`:
+
+```bash
+# Find highest existing ideation-N number
+ls -d {BASE_DIR}/ideation-* 2>/dev/null | sed 's/.*ideation-//' | sort -n | tail -1
+```
+
+If no folders exist, set `RUN_NUMBER = 1`. Otherwise, set `RUN_NUMBER = <highest> + 1`.
+
+```
+RUN_DIR = {BASE_DIR}/ideation-{RUN_NUMBER}
+```
+
+Create the run directory:
+```bash
+mkdir -p "{RUN_DIR}"
+```
+
+**Set OUTPUT_DIR:** For backward compatibility with agent prompts and file paths, set:
+```
+OUTPUT_DIR = {RUN_DIR}
+```
+
+All agent outputs, `ideation.json`, and `report.html` go into `{RUN_DIR}`. The `deep-analysis.json` cache stays in `{BASE_DIR}` so it can be reused across runs.
 
 **Write `.gitignore`** to `{OUTPUT_DIR}/.gitignore` if it does not already exist:
 ```
@@ -133,7 +161,7 @@ To regenerate, run /ideation or /roadmap in Claude Code.
 
 **Check deep-analysis cache:**
 
-Look for `{OUTPUT_DIR}/deep-analysis.json`. Use it (skip Phase 1) if ALL of the following are true:
+Look for `{BASE_DIR}/deep-analysis.json` (note: deep-analysis lives in the base dir, not the run dir). Use it (skip Phase 1) if ALL of the following are true:
 1. File exists and contains valid JSON
 2. `schema_version` field equals `"1.0"`
 3. `created_at` field is less than 24 hours ago (compare to current time via `date -u +%s`)
@@ -144,6 +172,8 @@ If the cache is valid, log: `"Using cached deep analysis from {created_at}"` and
 ---
 
 ### Phase 1: Deep Analysis
+
+**IMPORTANT:** Deep analysis files (`git-analysis.json`, `codebase-scan.json`, `competitive-research.json`, `deep-analysis.json`) are written to `{BASE_DIR}` (not `{RUN_DIR}`), so they can be cached and reused across runs. When replacing `{OUTPUT_DIR}` in context agent prompts, use `{BASE_DIR}`.
 
 Find the plugin's agent files. Use Glob to locate:
 ```
@@ -157,7 +187,7 @@ Take the path of the found file and derive the agents context directory from it.
 #### Agent 1: Git Analysis
 
 Read `agents/context/git-analysis.md`. Replace:
-- `{OUTPUT_DIR}` → absolute path to `{OUTPUT_DIR}`
+- `{OUTPUT_DIR}` → absolute path to `{BASE_DIR}` (deep analysis cache goes in base dir)
 - `{PROJECT_ROOT}` → absolute path to `PROJECT_ROOT`
 
 Dispatch with Agent tool:
@@ -168,7 +198,7 @@ Dispatch with Agent tool:
 
 #### Agent 2: Codebase Scan
 
-Read `agents/context/codebase-scan.md`. Replace `{OUTPUT_DIR}` and `{PROJECT_ROOT}`.
+Read `agents/context/codebase-scan.md`. Replace `{OUTPUT_DIR}` with `{BASE_DIR}` and `{PROJECT_ROOT}`.
 
 Dispatch with Agent tool:
 - `subagent_type`: `"general-purpose"`
@@ -178,7 +208,7 @@ Dispatch with Agent tool:
 
 #### Agent 3: Competitive Research
 
-Read `agents/context/competitive-research.md`. Replace `{OUTPUT_DIR}` and `{PROJECT_ROOT}`.
+Read `agents/context/competitive-research.md`. Replace `{OUTPUT_DIR}` with `{BASE_DIR}` and `{PROJECT_ROOT}`.
 
 Dispatch with Agent tool:
 - `subagent_type`: `"general-purpose"`
@@ -190,9 +220,9 @@ Dispatch with Agent tool:
 
 After all three agents complete:
 
-1. Read `{OUTPUT_DIR}/git-analysis.json`
-2. Read `{OUTPUT_DIR}/codebase-scan.json`
-3. Read `{OUTPUT_DIR}/competitive-research.json`
+1. Read `{BASE_DIR}/git-analysis.json`
+2. Read `{BASE_DIR}/codebase-scan.json`
+3. Read `{BASE_DIR}/competitive-research.json`
 
 If any file is missing or contains invalid JSON, continue with an empty object for that source and log a warning (e.g., `"Warning: codebase-scan.json missing or invalid — skipping"`).
 
@@ -212,14 +242,14 @@ Merge into a single `deep-analysis.json` object:
 
 If fields overlap between sources, `codebase-scan.json` wins over `git-analysis.json`, and `competitive-research.json` appends rather than overwrites.
 
-Write to `{OUTPUT_DIR}/deep-analysis.tmp.json` first. Validate:
+Write to `{BASE_DIR}/deep-analysis.tmp.json` first. Validate:
 ```bash
-python3 -c "import json, sys; json.load(open('{OUTPUT_DIR}/deep-analysis.tmp.json')); print('valid')"
+python3 -c "import json, sys; json.load(open('{BASE_DIR}/deep-analysis.tmp.json')); print('valid')"
 ```
 
 If valid, rename:
 ```bash
-mv "{OUTPUT_DIR}/deep-analysis.tmp.json" "{OUTPUT_DIR}/deep-analysis.json"
+mv "{BASE_DIR}/deep-analysis.tmp.json" "{BASE_DIR}/deep-analysis.json"
 ```
 
 ---
@@ -236,8 +266,8 @@ Glob("**/bvdr-ideation-and-roadmap/agents/ideation/{type}.md")
 ```
 
 Read the file. Replace these placeholders:
-- `{DEEP_ANALYSIS_PATH}` → absolute path to `{OUTPUT_DIR}/deep-analysis.json`
-- `{OUTPUT_DIR}` → absolute path to `{OUTPUT_DIR}`
+- `{DEEP_ANALYSIS_PATH}` → absolute path to `{BASE_DIR}/deep-analysis.json` (deep analysis is in base dir)
+- `{OUTPUT_DIR}` → absolute path to `{RUN_DIR}` (ideation outputs go in the run dir)
 - `{PROJECT_ROOT}` → absolute path to `PROJECT_ROOT`
 
 **Dispatch ALL ideation agents in parallel** — in a SINGLE message, issue multiple Agent tool calls each with `run_in_background: true`:
@@ -275,6 +305,17 @@ Read each type's output file from `{OUTPUT_DIR}`:
 For each file, extract the ideas array from inside it (the array is under the type's key, e.g., `code_improvements`, `code_quality`, etc.). If a file is missing or unparseable, log a warning and skip.
 
 Flatten all ideas into a single array. Each idea already has an `id` field — preserve it.
+
+#### 3.1b — Normalize idea fields
+
+Different ideation agents may use slightly different field names (camelCase vs snake_case) or omit fields. Before merging, normalize every idea:
+
+1. **`estimated_effort`**: If missing, check for `estimatedEffort` (camelCase). If still missing, default to `"small"`.
+2. **`affected_files`**: If missing, check for `affectedFiles` or `affected_components` or `affectedAreas`. Normalize to `affected_files` (snake_case array).
+3. **`type`**: Normalize dashes to underscores for JS compatibility in the HTML report: `"code-improvements"` → `"code_improvements"`, `"code-quality"` → `"code_quality"`, `"ui-ux"` → `"ui_ux"`. Keep the original dash-format in `ideation.json` `summary.by_type` keys but use underscore-format when injecting into the HTML template.
+4. **`status`**: If missing, set to `"pending"`.
+
+This step prevents "Unknown" badges in the HTML report from missing fields.
 
 #### 3.2 — Merge with existing `ideation.json`
 
@@ -325,6 +366,13 @@ Glob("**/bvdr-ideation-and-roadmap/assets/ideation-report-template.html")
 
 Read the template. Replace `{{IDEATION_DATA}}` with the full JSON content of `ideation.json` (including the `deep_analysis` summary fields from `deep-analysis.json` — include these as a top-level `"deep_analysis_summary"` key in the data injected into the template, with at minimum: `project_name`, `project_type`, `created_at`, and the `direction` and `git_activity` objects from deep-analysis).
 
+**IMPORTANT — JSON sanitization before injection:**
+
+The JSON data will be placed inside a `<script>` tag. Before replacing `{{IDEATION_DATA}}`, sanitize the JSON string:
+1. Replace all backticks (`` ` ``) with single quotes (`'`) — backticks break JS template literals in the template code
+2. Replace all `${` with `{` — `${...}` inside template literals would be interpreted as JS expressions
+3. Replace `</script>` with `<\/script>` — prevents premature script tag closure
+
 Write the result to `{OUTPUT_DIR}/report.html`.
 
 If the template file is not found, skip HTML report generation and log a warning.
@@ -362,7 +410,7 @@ Top 5 Quick Wins:
   4. [{id}] {title} ({estimated_effort})
   5. [{id}] {title} ({estimated_effort})
 
-Report: .claude/ideation/report.html
+Report: .claude/ideation/ideation-{RUN_NUMBER}/report.html
 
 Next: Review the report, then run:
   /ideation accept <id> [<id>...]     — accept ideas
@@ -371,6 +419,18 @@ Next: Review the report, then run:
 ```
 
 Use `"N/A"` for any count that could not be determined (e.g., if competitive-research.json was missing).
+
+---
+
+## Resolving the latest run directory (for review subcommands)
+
+The `accept`, `dismiss`, `status`, `create-issues`, and `create-issue` subcommands operate on the **most recent** ideation run. To find it:
+
+```bash
+ls -d {PROJECT_ROOT}/.claude/ideation/ideation-* 2>/dev/null | sort -t- -k2 -n | tail -1
+```
+
+Store the result as `OUTPUT_DIR`. If no run directory exists, print `"No ideation data found. Run /ideation first."` and stop.
 
 ---
 
@@ -556,15 +616,16 @@ These rules apply throughout all subcommands:
 Before starting `run`, mentally verify:
 
 - [ ] Step 0: Args parsed, subcommand identified
-- [ ] Phase 0: PROJECT_ROOT detected, OUTPUT_DIR created, .gitignore and Readme.txt written, cache checked
-- [ ] Phase 1: 3 context agents dispatched sequentially, outputs merged into deep-analysis.json (skip if cached)
-- [ ] Phase 2: Ideation agent files located, placeholders replaced, all agents dispatched in parallel
-- [ ] Phase 3.1: All type output files read
+- [ ] Phase 0: PROJECT_ROOT detected, BASE_DIR created, RUN_DIR computed (ideation-N auto-increment), .gitignore and Readme.txt written, deep-analysis cache checked in BASE_DIR
+- [ ] Phase 1: 3 context agents dispatched sequentially, outputs merged into deep-analysis.json in BASE_DIR (skip if cached)
+- [ ] Phase 2: Ideation agent files located, placeholders replaced (DEEP_ANALYSIS_PATH → BASE_DIR, OUTPUT_DIR → RUN_DIR), all agents dispatched in parallel
+- [ ] Phase 3.1: All type output files read from RUN_DIR
+- [ ] Phase 3.1b: Field normalization applied (estimated_effort, affected_files, status)
 - [ ] Phase 3.2: Existing ideation.json merged (preserving non-pending), auto-dismissal applied
 - [ ] Phase 3.3: Summary stats computed
-- [ ] Phase 3.4: ideation.json written
-- [ ] Phase 3.5: HTML report generated
+- [ ] Phase 3.4: ideation.json written to RUN_DIR
+- [ ] Phase 3.5: HTML report generated (JSON sanitized: backticks, template literals, script tags)
 - [ ] Phase 3.6: Report opened (unless --no-open)
-- [ ] Phase 3.7: Terminal summary printed
+- [ ] Phase 3.7: Terminal summary printed with RUN_DIR path
 
 Now execute. Start with Step 0.
