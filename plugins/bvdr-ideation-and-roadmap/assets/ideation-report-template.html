@@ -383,6 +383,164 @@ html.dark .card.status-dismissed .btn-dismiss {
   display: none;
 }
 
+/* ===== Note button in card actions ===== */
+.card-actions .btn-note {
+  color: var(--text-muted);
+}
+.card-actions .btn-note:hover {
+  background: #e0e7ff;
+  border-color: #6366f1;
+  color: #4f46e5;
+}
+html.dark .card-actions .btn-note:hover {
+  background: #312e81;
+  color: #a5b4fc;
+}
+/* Note button stays visually active when card already has a note */
+.card.has-note .btn-note {
+  color: #6366f1;
+  border-color: #6366f1;
+  background: #eef2ff;
+}
+html.dark .card.has-note .btn-note {
+  color: #a5b4fc;
+  border-color: #6366f1;
+  background: #312e81;
+}
+/* Always show actions when card has a note (not just on hover) */
+.card.has-note .card-actions {
+  opacity: 1;
+}
+
+/* ===== Card note display (inline below rationale) ===== */
+.card-note {
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #4338ca;
+  line-height: 1.5;
+  position: relative;
+}
+.card-note::before {
+  content: 'Note';
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  opacity: 0.7;
+}
+html.dark .card-note {
+  background: #1e1b4b;
+  border-color: #3730a3;
+  color: #c7d2fe;
+}
+
+/* ===== Note modal overlay ===== */
+.note-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+}
+.note-overlay.open {
+  opacity: 1;
+  pointer-events: all;
+}
+.note-modal {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  width: 90%;
+  max-width: 520px;
+  padding: 24px;
+  transform: translateY(10px);
+  transition: transform 0.2s;
+}
+.note-overlay.open .note-modal {
+  transform: translateY(0);
+}
+.note-modal h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.note-modal .note-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+.note-modal textarea {
+  width: 100%;
+  min-height: 120px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+}
+.note-modal textarea:focus {
+  outline: none;
+  border-color: #6366f1;
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+}
+.note-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+.note-modal-actions button {
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.note-modal-actions .btn-cancel {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+.note-modal-actions .btn-cancel:hover {
+  background: var(--bg-secondary);
+}
+.note-modal-actions .btn-save-note {
+  background: #6366f1;
+  border: 1px solid #6366f1;
+  color: #fff;
+}
+.note-modal-actions .btn-save-note:hover {
+  background: #4f46e5;
+}
+.note-modal-actions .btn-delete-note {
+  background: transparent;
+  border: 1px solid #ef4444;
+  color: #ef4444;
+  margin-right: auto;
+}
+.note-modal-actions .btn-delete-note:hover {
+  background: #fef2f2;
+}
+html.dark .note-modal-actions .btn-delete-note:hover {
+  background: #7f1d1d;
+}
+
 /* Card header row: badges */
 .card-badges {
   display: flex;
@@ -994,11 +1152,15 @@ function buildClaudePrompt() {
   prompt += `- Report: ${ideationDir}/report.html\n\n`;
   prompt += `Total ideas: ${ideas.length} | Reviewed: ${accepted.length + dismissed.length} | Accepted: ${accepted.length} | Dismissed: ${dismissed.length}\n\n`;
 
+  // Collect pending ideas that have notes — include them so Claude can persist the notes
+  const withNotes = ideas.filter(i => i.user_note && i.status !== 'accepted' && i.status !== 'dismissed');
+
   if (accepted.length > 0) {
     prompt += `## Accepted Ideas (${accepted.length})\n\n`;
     accepted.forEach(i => {
       const hasIssue = i.gh_issue ? ` [already has Issue #${i.gh_issue.number}]` : ' [NEEDS GH ISSUE]';
       prompt += `- **${i.id}**: "${i.title}" (${i.type}, ${i.estimated_effort || 'unknown'} effort)${hasIssue}\n`;
+      if (i.user_note) prompt += `  > **User note:** ${i.user_note}\n`;
     });
     prompt += `\n`;
   }
@@ -1008,14 +1170,24 @@ function buildClaudePrompt() {
     dismissed.forEach(i => {
       const reason = i.dismissed_reason ? ` — reason: "${i.dismissed_reason}"` : '';
       prompt += `- **${i.id}**: "${i.title}"${reason}\n`;
+      if (i.user_note) prompt += `  > **User note:** ${i.user_note}\n`;
     });
     prompt += `\n`;
+  }
+
+  if (withNotes.length > 0) {
+    prompt += `## Pending Ideas with Notes (${withNotes.length})\n\n`;
+    withNotes.forEach(i => {
+      prompt += `- **${i.id}**: "${i.title}"\n`;
+      prompt += `  > **User note:** ${i.user_note}\n`;
+    });
+    prompt += `\nFor these ideas: update the "user_note" field in ideation.json and use the note as context when Claude processes this idea (e.g., refine the description, adjust the approach, or flag concerns).\n\n`;
   }
 
   prompt += `## Instructions\n\n`;
   prompt += `### Step 1: Update ideation.json\n`;
   prompt += `1. Read ${ideationJsonPath}\n`;
-  prompt += `2. For each idea listed above, update its "status" to "accepted" or "dismissed" and set "reviewed_at" to current ISO timestamp\n`;
+  prompt += `2. For each idea listed above, update its "status" to "accepted" or "dismissed", set "reviewed_at" to current ISO timestamp, and if a user note is provided, set "user_note" to that text\n`;
   prompt += `3. Recalculate summary.by_status counts\n`;
   prompt += `4. Set updated_at to current ISO timestamp\n`;
   prompt += `5. Write the updated JSON back\n\n`;
@@ -1295,14 +1467,17 @@ function renderCard(idea) {
   const hasImpl = idea.implementation_approach;
 
   return `
-    <div class="card status-${ideaStatus}" style="--card-type-color:${typeColor}" data-idea-id="${idea.id}">
-      <!-- Thumbs up/down action buttons — hidden on created cards, always visible on accepted/dismissed -->
+    <div class="card status-${ideaStatus}${idea.user_note ? ' has-note' : ''}" style="--card-type-color:${typeColor}" data-idea-id="${idea.id}">
+      <!-- Action buttons: accept, dismiss, note — hidden on created cards, always visible on accepted/dismissed/has-note -->
       <div class="card-actions">
         <button class="btn-accept" onclick="event.stopPropagation();setIdeaStatus('${idea.id}','accepted')" title="Accept">
           <svg viewBox="0 0 24 24"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg>
         </button>
         <button class="btn-dismiss" onclick="event.stopPropagation();setIdeaStatus('${idea.id}','dismissed')" title="Dismiss">
           <svg viewBox="0 0 24 24"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z"/></svg>
+        </button>
+        <button class="btn-note" onclick="event.stopPropagation();openNoteModal('${idea.id}')" title="Add note">
+          <svg viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
         </button>
       </div>
       <div class="card-badges">
@@ -1326,6 +1501,7 @@ function renderCard(idea) {
         <div class="expandable-content" id="rat-${idea.id}">${escapeHtml(idea.rationale)}</div>
         <button class="expand-btn" onclick="toggleExpand('rat-${idea.id}', this)">Show more</button>
       </div>` : ''}
+      ${idea.user_note ? `<div class="card-note">${escapeHtml(idea.user_note)}</div>` : ''}
       ${affectedFiles.length > 0 ? `
       <div class="collapsible">
         <button class="collapsible-toggle" onclick="toggleCollapsible(this)">
@@ -1480,9 +1656,129 @@ function toggleInsight(header) {
   if (body) body.classList.toggle('open');
 }
 
+/* ===== Notes ===== */
+// Notes are stored in localStorage so they survive page reloads.
+// The key includes the report ID so multiple reports don't share notes.
+// When the JSON already has a user_note (previously synced), localStorage copy is dropped.
+const NOTES_STORAGE_KEY = 'ideation-notes-' + (IDEATION_DATA.id || 'default');
+let currentNoteId = null;
+
+function initNotes() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(NOTES_STORAGE_KEY) || '{}');
+    (IDEATION_DATA.ideas || []).forEach(idea => {
+      // Apply localStorage note only when JSON doesn't already have one
+      if (saved[idea.id] && !idea.user_note) {
+        idea.user_note = saved[idea.id];
+      }
+    });
+    // Compact: keep only notes that aren't already in the JSON
+    const stillNeeded = {};
+    Object.entries(saved).forEach(([id, note]) => {
+      const idea = (IDEATION_DATA.ideas || []).find(i => i.id === id);
+      if (idea && idea.user_note !== note) stillNeeded[id] = note;
+    });
+    if (Object.keys(stillNeeded).length > 0) {
+      localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(stillNeeded));
+    } else {
+      localStorage.removeItem(NOTES_STORAGE_KEY);
+    }
+  } catch {}
+}
+
+function openNoteModal(id) {
+  currentNoteId = id;
+  const idea = (IDEATION_DATA.ideas || []).find(i => i.id === id);
+  if (!idea) return;
+
+  // Create overlay on first use — reuse across calls
+  let overlay = document.getElementById('note-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'note-overlay';
+    overlay.className = 'note-overlay';
+    overlay.innerHTML = `
+      <div class="note-modal">
+        <h3 id="note-modal-title"></h3>
+        <div class="note-subtitle" id="note-modal-subtitle"></div>
+        <textarea id="note-textarea" placeholder="Add context, notes, or amendments for Claude..."></textarea>
+        <div class="note-modal-actions">
+          <button class="btn-delete-note" id="note-delete-btn" onclick="deleteNote()">Delete</button>
+          <button class="btn-cancel" onclick="closeNoteModal()">Cancel</button>
+          <button class="btn-save-note" onclick="saveNote()">Save Note</button>
+        </div>
+      </div>
+    `;
+    // Close modal when clicking the backdrop (outside .note-modal)
+    overlay.addEventListener('click', function(e) {
+      if (e.target === overlay) closeNoteModal();
+    });
+    document.body.appendChild(overlay);
+  }
+
+  document.getElementById('note-modal-title').textContent = idea.title;
+  document.getElementById('note-modal-subtitle').textContent = `${idea.id} · ${idea.type}`;
+  document.getElementById('note-textarea').value = idea.user_note || '';
+  document.getElementById('note-delete-btn').style.display = idea.user_note ? 'block' : 'none';
+
+  requestAnimationFrame(() => {
+    overlay.classList.add('open');
+    document.getElementById('note-textarea').focus();
+  });
+}
+
+function closeNoteModal() {
+  const overlay = document.getElementById('note-overlay');
+  if (overlay) overlay.classList.remove('open');
+  currentNoteId = null;
+}
+
+function saveNote() {
+  if (!currentNoteId) return;
+  const idea = (IDEATION_DATA.ideas || []).find(i => i.id === currentNoteId);
+  if (!idea) return;
+  const text = document.getElementById('note-textarea').value.trim();
+  idea.user_note = text || undefined;
+  persistNotes();
+  closeNoteModal();
+  renderCards();
+  showToast(text ? 'Note saved' : 'Note removed');
+}
+
+function deleteNote() {
+  if (!currentNoteId) return;
+  const idea = (IDEATION_DATA.ideas || []).find(i => i.id === currentNoteId);
+  if (!idea) return;
+  delete idea.user_note;
+  persistNotes();
+  closeNoteModal();
+  renderCards();
+  showToast('Note removed');
+}
+
+function persistNotes() {
+  const notes = {};
+  (IDEATION_DATA.ideas || []).forEach(i => {
+    if (i.user_note) notes[i.id] = i.user_note;
+  });
+  if (Object.keys(notes).length > 0) {
+    localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(notes));
+    hasUnsavedChanges = true;
+  } else {
+    localStorage.removeItem(NOTES_STORAGE_KEY);
+  }
+  updateSyncButton();
+}
+
+// Close note modal on Escape key
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeNoteModal();
+});
+
 /* ===== Init ===== */
 // Apply saved status overrides before rendering so cards show correct state on load
 initStatusOverrides();
+initNotes();
 initTheme();
 render();
 </script>
