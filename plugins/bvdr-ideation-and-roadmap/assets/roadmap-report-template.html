@@ -1,0 +1,1519 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roadmap Report</title>
+<style>
+/* ── Reset & Base ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  /* Light theme */
+  --bg: #FFFFFF;
+  --bg-secondary: #F9FAFB;
+  --bg-tertiary: #F3F4F6;
+  --bg-card: #FFFFFF;
+  --bg-hover: #F3F4F6;
+  --bg-input: #FFFFFF;
+  --border: #E5E7EB;
+  --border-light: #F3F4F6;
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+  --text-tertiary: #9CA3AF;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.07), 0 2px 4px -2px rgba(0,0,0,0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -4px rgba(0,0,0,0.04);
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  /* Priority colors */
+  --must: #EF4444;
+  --must-bg: #FEF2F2;
+  --should: #F59E0B;
+  --should-bg: #FFFBEB;
+  --could: #3B82F6;
+  --could-bg: #EFF6FF;
+  --wont: #9CA3AF;
+  --wont-bg: #F9FAFB;
+  /* Source colors */
+  --src-ideation: #8B5CF6;
+  --src-ideation-bg: #F5F3FF;
+  --src-competitive: #3B82F6;
+  --src-competitive-bg: #EFF6FF;
+  --src-blindspot: #F97316;
+  --src-blindspot-bg: #FFF7ED;
+  --src-momentum: #10B981;
+  --src-momentum-bg: #ECFDF5;
+  --src-open-issue: #14B8A6;
+  --src-open-issue-bg: #F0FDFA;
+  /* Status colors */
+  --status-pending: #F59E0B;
+  --status-pending-bg: #FFFBEB;
+  --status-accepted: #10B981;
+  --status-accepted-bg: #ECFDF5;
+  --status-dismissed: #EF4444;
+  --status-dismissed-bg: #FEF2F2;
+  --status-created: #3B82F6;
+  --status-created-bg: #EFF6FF;
+  /* Phase status */
+  --phase-planned: #3B82F6;
+  --phase-active: #10B981;
+  --phase-completed: #6B7280;
+  /* Accent */
+  --accent: #6366F1;
+  --accent-light: #EEF2FF;
+}
+
+[data-theme="dark"] {
+  --bg: #0F1117;
+  --bg-secondary: #1A1D2E;
+  --bg-tertiary: #252838;
+  --bg-card: #1A1D2E;
+  --bg-hover: #252838;
+  --bg-input: #252838;
+  --border: #2D3148;
+  --border-light: #252838;
+  --text-primary: #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-tertiary: #64748B;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.4), 0 2px 4px -2px rgba(0,0,0,0.3);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.5), 0 4px 6px -4px rgba(0,0,0,0.3);
+  --must-bg: #451A1A;
+  --should-bg: #45381A;
+  --could-bg: #1A2745;
+  --wont-bg: #252838;
+  --src-ideation-bg: #2D1B5E;
+  --src-competitive-bg: #1A2745;
+  --src-blindspot-bg: #452A1A;
+  --src-momentum-bg: #1A3A2A;
+  --src-open-issue-bg: #1A3A38;
+  --status-pending-bg: #45381A;
+  --status-accepted-bg: #1A3A2A;
+  --status-dismissed-bg: #451A1A;
+  --status-created-bg: #1A2745;
+  --accent-light: #1E1B4B;
+}
+
+html { font-size: 15px; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  line-height: 1.6;
+  transition: background 0.2s, color 0.2s;
+}
+
+/* ── Layout ───────────────────────────────────────────────────── */
+.container { max-width: 1400px; margin: 0 auto; padding: 0 24px; }
+
+/* ── Header / Vision Banner ───────────────────────────────────── */
+.header {
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  padding: 32px 0 28px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.header-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+.header-left { flex: 1; min-width: 300px; }
+.project-name {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+  margin-bottom: 6px;
+}
+.vision-text {
+  font-size: 1.05rem;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+.header-meta {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.badge-accent { background: var(--accent-light); color: var(--accent); }
+.badge-muted { background: var(--bg-tertiary); color: var(--text-secondary); }
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+/* Theme toggle */
+.theme-toggle {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 7px 10px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  transition: all 0.15s;
+}
+.theme-toggle:hover { background: var(--bg-hover); color: var(--text-primary); }
+.theme-toggle .icon-sun, .theme-toggle .icon-moon { width: 18px; height: 18px; }
+[data-theme="light"] .theme-toggle .icon-moon { display: none; }
+[data-theme="dark"] .theme-toggle .icon-sun { display: none; }
+
+/* ── Phase Timeline ───────────────────────────────────────────── */
+.timeline-section { padding: 28px 0 20px; border-bottom: 1px solid var(--border); }
+.section-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+  margin-bottom: 16px;
+}
+.timeline {
+  display: flex;
+  gap: 0;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  position: relative;
+}
+.timeline::before {
+  content: '';
+  position: absolute;
+  top: 20px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--border);
+  z-index: 0;
+}
+.timeline-phase {
+  flex: 1;
+  min-width: 160px;
+  position: relative;
+  z-index: 1;
+  padding: 0 12px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.timeline-phase:hover { opacity: 0.85; }
+.timeline-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--border);
+  border: 3px solid var(--bg-secondary);
+  margin: 0 auto 12px;
+  position: relative;
+  transition: all 0.2s;
+}
+.timeline-phase[data-status="active"] .timeline-dot,
+.timeline-phase[data-status="in_progress"] .timeline-dot {
+  background: var(--phase-active);
+  box-shadow: 0 0 0 4px rgba(16,185,129,0.2);
+}
+.timeline-phase[data-status="planned"] .timeline-dot { background: var(--phase-planned); }
+.timeline-phase[data-status="completed"] .timeline-dot { background: var(--phase-completed); }
+.timeline-phase-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 4px;
+  color: var(--text-primary);
+}
+.timeline-phase-count {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+  text-align: center;
+  margin-bottom: 6px;
+}
+.moscow-dots {
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+  flex-wrap: wrap;
+}
+.moscow-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.moscow-dot[data-priority="must"] { background: var(--must); }
+.moscow-dot[data-priority="should"] { background: var(--should); }
+.moscow-dot[data-priority="could"] { background: var(--could); }
+.moscow-dot[data-priority="wont"] { background: var(--wont); }
+
+/* ── Filters ──────────────────────────────────────────────────── */
+.filters-section { padding: 20px 0 16px; border-bottom: 1px solid var(--border); }
+.filters-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.filter-btn {
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.filter-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.filter-btn.active { background: var(--accent); color: #fff; }
+.filter-btn + .filter-btn { border-left: 1px solid var(--border); }
+
+.search-input {
+  padding: 7px 12px;
+  font-size: 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  outline: none;
+  min-width: 200px;
+  transition: border-color 0.15s;
+}
+.search-input:focus { border-color: var(--accent); }
+.search-input::placeholder { color: var(--text-tertiary); }
+
+.filter-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-tertiary);
+  padding: 6px 10px;
+  user-select: none;
+}
+
+.active-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+}
+.active-filter-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: var(--accent-light);
+  color: var(--accent);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 500;
+}
+.active-filter-tag button {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.85rem;
+  line-height: 1;
+  padding: 0 2px;
+  opacity: 0.7;
+}
+.active-filter-tag button:hover { opacity: 1; }
+.clear-filters {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  text-decoration: underline;
+}
+.clear-filters:hover { color: var(--text-secondary); }
+
+/* ── Feature Board ────────────────────────────────────────────── */
+.board-section { padding: 24px 0; }
+.board {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  padding-bottom: 16px;
+  min-height: 300px;
+}
+.board-column {
+  flex: 0 0 340px;
+  min-width: 340px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 300px);
+}
+.column-header {
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  z-index: 2;
+}
+.column-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+.column-desc {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+.column-count {
+  font-size: 0.7rem;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+}
+.column-cards {
+  padding: 12px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Feature card */
+.feature-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  border-left: 4px solid var(--border);
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+.feature-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+.feature-card.highlight {
+  box-shadow: 0 0 0 2px var(--accent), var(--shadow-md);
+}
+.feature-card[data-priority="must"] { border-left-color: var(--must); }
+.feature-card[data-priority="should"] { border-left-color: var(--should); }
+.feature-card[data-priority="could"] { border-left-color: var(--could); }
+.feature-card[data-priority="wont"] { border-left-color: var(--wont); }
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.card-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  line-height: 1.3;
+  flex: 1;
+}
+.card-expand-icon {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  color: var(--text-tertiary);
+  transition: transform 0.2s;
+}
+.feature-card.expanded .card-expand-icon { transform: rotate(180deg); }
+
+.card-description {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.feature-card.expanded .card-description {
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+
+.card-pills {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+/* Complexity pills */
+.pill-complexity-low { background: #ECFDF5; color: #059669; }
+.pill-complexity-medium { background: #FFFBEB; color: #D97706; }
+.pill-complexity-high { background: #FEF2F2; color: #DC2626; }
+[data-theme="dark"] .pill-complexity-low { background: #1A3A2A; color: #34D399; }
+[data-theme="dark"] .pill-complexity-medium { background: #45381A; color: #FBBF24; }
+[data-theme="dark"] .pill-complexity-high { background: #451A1A; color: #F87171; }
+/* Impact pills */
+.pill-impact-low { background: #F3F4F6; color: #6B7280; }
+.pill-impact-medium { background: #EFF6FF; color: #2563EB; }
+.pill-impact-high { background: #F5F3FF; color: #7C3AED; }
+[data-theme="dark"] .pill-impact-low { background: #252838; color: #94A3B8; }
+[data-theme="dark"] .pill-impact-medium { background: #1A2745; color: #60A5FA; }
+[data-theme="dark"] .pill-impact-high { background: #2D1B5E; color: #A78BFA; }
+
+/* Source pills */
+.pill-source {
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+.pill-source-ideation { background: var(--src-ideation-bg); color: var(--src-ideation); }
+.pill-source-competitive { background: var(--src-competitive-bg); color: var(--src-competitive); }
+.pill-source-blindspot { background: var(--src-blindspot-bg); color: var(--src-blindspot); }
+.pill-source-team-momentum { background: var(--src-momentum-bg); color: var(--src-momentum); }
+.pill-source-open-issue { background: var(--src-open-issue-bg); color: var(--src-open-issue); }
+
+/* Status pills */
+.pill-status-pending { background: var(--status-pending-bg); color: var(--status-pending); }
+.pill-status-accepted { background: var(--status-accepted-bg); color: var(--status-accepted); }
+.pill-status-dismissed { background: var(--status-dismissed-bg); color: var(--status-dismissed); }
+.pill-status-created { background: var(--status-created-bg); color: var(--status-created); }
+
+/* Expanded card details */
+.card-details {
+  display: none;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-light);
+}
+.feature-card.expanded .card-details { display: block; }
+
+.detail-section { margin-bottom: 12px; }
+.detail-section:last-child { margin-bottom: 0; }
+.detail-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  margin-bottom: 6px;
+}
+.detail-list {
+  list-style: none;
+  padding: 0;
+}
+.detail-list li {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  padding: 3px 0;
+  padding-left: 14px;
+  position: relative;
+  line-height: 1.45;
+}
+.detail-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--text-tertiary);
+}
+
+/* Dependency badges */
+.dep-badges {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.dep-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 9px;
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+  font-weight: 500;
+  background: var(--bg-tertiary);
+  color: var(--accent);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-decoration: none;
+}
+.dep-badge:hover { background: var(--accent-light); border-color: var(--accent); }
+.dep-badge svg { width: 12px; height: 12px; }
+
+/* Related issues */
+.issue-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+  color: var(--accent);
+  text-decoration: none;
+  padding: 2px 0;
+}
+.issue-link:hover { text-decoration: underline; }
+
+/* GH Issue link on card */
+.gh-issue-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  text-decoration: none;
+  margin-top: 8px;
+}
+.gh-issue-link:hover { color: var(--accent); }
+
+/* ── Milestones ───────────────────────────────────────────────── */
+.milestones-section {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--border);
+}
+.milestone-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  padding: 3px 0;
+}
+.milestone-icon {
+  width: 14px;
+  height: 14px;
+  color: var(--text-tertiary);
+  flex-shrink: 0;
+}
+
+/* ── Competitive Analysis ─────────────────────────────────────── */
+.competitive-section {
+  padding: 24px 0;
+  border-top: 1px solid var(--border);
+}
+.collapsible-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 12px 0;
+  user-select: none;
+}
+.collapsible-header:hover .collapsible-title { color: var(--accent); }
+.collapsible-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  transition: color 0.15s;
+}
+.collapsible-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--text-tertiary);
+  transition: transform 0.2s;
+}
+.collapsible-header.open .collapsible-icon { transform: rotate(180deg); }
+.collapsible-body {
+  display: none;
+  padding-top: 12px;
+}
+.collapsible-body.open { display: block; }
+
+.comp-table-wrapper { overflow-x: auto; }
+.comp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+.comp-table th, .comp-table td {
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+.comp-table th {
+  background: var(--bg-tertiary);
+  font-weight: 600;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-secondary);
+  position: sticky;
+  top: 0;
+}
+.comp-table td { background: var(--bg-card); }
+.comp-table tr:hover td { background: var(--bg-hover); }
+.comp-check { color: #10B981; font-weight: bold; }
+.comp-cross { color: #EF4444; }
+.comp-unknown { color: var(--text-tertiary); }
+
+/* ── Statistics Footer ────────────────────────────────────────── */
+.stats-footer {
+  padding: 28px 0;
+  border-top: 1px solid var(--border);
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+.stat-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+.stat-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  margin-bottom: 6px;
+}
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.stat-sub {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+.stat-breakdown {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.stat-breakdown-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+.stat-breakdown-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* ── No Results ───────────────────────────────────────────────── */
+.no-results {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-tertiary);
+}
+.no-results-icon { font-size: 2rem; margin-bottom: 12px; }
+.no-results-text { font-size: 0.9rem; }
+
+/* ── Rationale tooltip ────────────────────────────────────────── */
+.rationale {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
+
+/* ── Target audience ──────────────────────────────────────────── */
+.audience-info {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.audience-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+.audience-badge.primary { background: var(--accent-light); color: var(--accent); border-color: transparent; }
+
+/* ── Responsive ───────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .header-inner { flex-direction: column; }
+  .header-right { width: 100%; justify-content: flex-end; }
+  .board-column { flex: 0 0 300px; min-width: 300px; }
+  .filters-row { gap: 6px; }
+  .filter-group { flex-wrap: wrap; }
+  .search-input { min-width: 100%; }
+  .stats-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+}
+
+/* ── Empty state for columns ──────────────────────────────────── */
+.column-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+}
+</style>
+</head>
+<body>
+
+<script>
+const ROADMAP_DATA = {{ROADMAP_DATA}};
+</script>
+
+<!-- SVG icon definitions used throughout the template -->
+<svg style="display:none" xmlns="http://www.w3.org/2000/svg">
+  <symbol id="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+  </symbol>
+  <symbol id="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+  </symbol>
+  <symbol id="icon-chevron-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="6 9 12 15 18 9"/>
+  </symbol>
+  <symbol id="icon-link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+  </symbol>
+  <symbol id="icon-flag" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>
+  </symbol>
+  <symbol id="icon-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+  </symbol>
+</svg>
+
+<div id="app"></div>
+
+<script>
+(function() {
+  'use strict';
+
+  const data = ROADMAP_DATA;
+
+  // ── Helpers ──────────────────────────────────────────────────
+  function esc(str) {
+    if (!str) return '';
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '';
+    try {
+      const d = new Date(iso);
+      return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    } catch(e) { return iso; }
+  }
+
+  // Parse source string into type and detail
+  // e.g. "ideation:ci-003" -> { type: "ideation", detail: "ci-003" }
+  // e.g. "competitive" -> { type: "competitive", detail: null }
+  // e.g. "open-issue:15" -> { type: "open-issue", detail: "15" }
+  function parseSource(src) {
+    if (!src) return { type: 'unknown', detail: null };
+    const parts = src.split(':');
+    return { type: parts[0], detail: parts[1] || null };
+  }
+
+  function sourceLabel(type) {
+    const map = {
+      'ideation': 'Ideation',
+      'competitive': 'Competitive',
+      'blindspot': 'Blindspot',
+      'team-momentum': 'Momentum',
+      'open-issue': 'Open Issue'
+    };
+    return map[type] || type;
+  }
+
+  // Build a feature lookup by ID for quick dependency resolution
+  const featureMap = {};
+  (data.features || []).forEach(f => { featureMap[f.id] = f; });
+
+  // Build phase lookup
+  const phaseMap = {};
+  (data.phases || []).forEach(p => { phaseMap[p.id] = p; });
+
+  // ── State ────────────────────────────────────────────────────
+  const state = {
+    filters: {
+      priority: 'all',
+      complexity: 'all',
+      impact: 'all',
+      source: 'all',
+      phase: 'all',
+      status: 'all',
+      search: ''
+    },
+    expandedCards: new Set()
+  };
+
+  // ── Theme ────────────────────────────────────────────────────
+  function initTheme() {
+    const saved = localStorage.getItem('roadmap-theme');
+    if (saved) {
+      document.documentElement.setAttribute('data-theme', saved);
+    } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  }
+
+  function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme');
+    const next = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('roadmap-theme', next);
+  }
+
+  initTheme();
+
+  // ── Filtering ────────────────────────────────────────────────
+  function matchesFilters(feature) {
+    const f = state.filters;
+    if (f.priority !== 'all' && feature.priority !== f.priority) return false;
+    if (f.complexity !== 'all' && feature.complexity !== f.complexity) return false;
+    if (f.impact !== 'all' && feature.impact !== f.impact) return false;
+    if (f.status !== 'all' && feature.status !== f.status) return false;
+    if (f.phase !== 'all' && feature.phase_id !== f.phase) return false;
+    if (f.source !== 'all') {
+      const src = parseSource(feature.source);
+      if (src.type !== f.source) return false;
+    }
+    if (f.search) {
+      const q = f.search.toLowerCase();
+      const haystack = (feature.title + ' ' + (feature.description || '')).toLowerCase();
+      if (!haystack.includes(q)) return false;
+    }
+    return true;
+  }
+
+  function getFilteredFeatures() {
+    return (data.features || []).filter(matchesFilters);
+  }
+
+  function getActiveFilterCount() {
+    let count = 0;
+    const f = state.filters;
+    if (f.priority !== 'all') count++;
+    if (f.complexity !== 'all') count++;
+    if (f.impact !== 'all') count++;
+    if (f.source !== 'all') count++;
+    if (f.phase !== 'all') count++;
+    if (f.status !== 'all') count++;
+    if (f.search) count++;
+    return count;
+  }
+
+  // ── Render ───────────────────────────────────────────────────
+  function render() {
+    const app = document.getElementById('app');
+    const filtered = getFilteredFeatures();
+
+    // Group features by phase
+    const phaseFeatures = {};
+    (data.phases || []).forEach(p => { phaseFeatures[p.id] = []; });
+    filtered.forEach(f => {
+      if (phaseFeatures[f.phase_id]) {
+        phaseFeatures[f.phase_id].push(f);
+      }
+    });
+
+    app.innerHTML = `
+      ${renderHeader()}
+      <div class="container">
+        ${renderTimeline()}
+        ${renderFilters()}
+        ${renderBoard(phaseFeatures)}
+        ${renderCompetitiveAnalysis()}
+        ${renderStats()}
+      </div>
+    `;
+
+    bindEvents();
+  }
+
+  function renderHeader() {
+    const ta = data.target_audience;
+    return `
+    <header class="header">
+      <div class="container">
+        <div class="header-inner">
+          <div class="header-left">
+            <h1 class="project-name">${esc(data.project_name || 'Roadmap')}</h1>
+            ${data.vision ? `<p class="vision-text">${esc(data.vision)}</p>` : ''}
+            <div class="header-meta">
+              ${data.version ? `<span class="badge badge-accent">v${esc(data.version)}</span>` : ''}
+              <span class="badge badge-muted">${esc(formatDate(data.metadata?.created_at))}</span>
+              ${data.metadata?.prioritization_framework ? `<span class="badge badge-muted">${esc(data.metadata.prioritization_framework)}</span>` : ''}
+            </div>
+            ${ta ? `
+            <div class="audience-info">
+              ${ta.primary ? `<span class="audience-badge primary">${esc(ta.primary)}</span>` : ''}
+              ${(ta.secondary || []).map(s => `<span class="audience-badge">${esc(s)}</span>`).join('')}
+            </div>` : ''}
+          </div>
+          <div class="header-right">
+            <button class="theme-toggle" id="theme-toggle" title="Toggle dark/light mode">
+              <svg class="icon-sun" width="18" height="18"><use href="#icon-sun"/></svg>
+              <svg class="icon-moon" width="18" height="18"><use href="#icon-moon"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>`;
+  }
+
+  function renderTimeline() {
+    const phases = data.phases || [];
+    if (phases.length === 0) return '';
+
+    return `
+    <section class="timeline-section">
+      <div class="section-title">Phase Timeline</div>
+      <div class="timeline">
+        ${phases.sort((a, b) => a.order - b.order).map(phase => {
+          const features = (data.features || []).filter(f => f.phase_id === phase.id);
+          const moscowDots = features.map(f =>
+            `<span class="moscow-dot" data-priority="${esc(f.priority)}"></span>`
+          ).join('');
+          return `
+          <div class="timeline-phase" data-status="${esc(phase.status)}" data-phase-id="${esc(phase.id)}">
+            <div class="timeline-dot"></div>
+            <div class="timeline-phase-name">${esc(phase.name)}</div>
+            <div class="timeline-phase-count">${features.length} feature${features.length !== 1 ? 's' : ''}</div>
+            <div class="moscow-dots">${moscowDots}</div>
+          </div>`;
+        }).join('')}
+      </div>
+    </section>`;
+  }
+
+  function renderFilters() {
+    const phases = (data.phases || []).sort((a, b) => a.order - b.order);
+    const f = state.filters;
+
+    // Collect active filters for display
+    const activeTags = [];
+    if (f.priority !== 'all') activeTags.push({ key: 'priority', label: 'Priority: ' + f.priority });
+    if (f.complexity !== 'all') activeTags.push({ key: 'complexity', label: 'Complexity: ' + f.complexity });
+    if (f.impact !== 'all') activeTags.push({ key: 'impact', label: 'Impact: ' + f.impact });
+    if (f.source !== 'all') activeTags.push({ key: 'source', label: 'Source: ' + sourceLabel(f.source) });
+    if (f.phase !== 'all') {
+      const p = phaseMap[f.phase];
+      activeTags.push({ key: 'phase', label: 'Phase: ' + (p ? p.name : f.phase) });
+    }
+    if (f.status !== 'all') activeTags.push({ key: 'status', label: 'Status: ' + f.status });
+    if (f.search) activeTags.push({ key: 'search', label: 'Search: "' + f.search + '"' });
+
+    return `
+    <section class="filters-section">
+      <div class="filters-row">
+        <input type="text" class="search-input" id="filter-search" placeholder="Search features..." value="${esc(f.search)}">
+        ${renderFilterGroup('priority', ['all', 'must', 'should', 'could', 'wont'], f.priority)}
+        ${renderFilterGroup('complexity', ['all', 'low', 'medium', 'high'], f.complexity)}
+        ${renderFilterGroup('impact', ['all', 'low', 'medium', 'high'], f.impact)}
+        ${renderFilterGroup('source', ['all', 'ideation', 'competitive', 'blindspot', 'team-momentum', 'open-issue'], f.source)}
+        ${renderFilterGroup('status', ['all', 'pending', 'accepted', 'dismissed', 'created'], f.status)}
+        ${phases.length > 1 ? renderFilterGroup('phase', ['all'].concat(phases.map(p => p.id)), f.phase, phases) : ''}
+      </div>
+      ${activeTags.length > 0 ? `
+      <div class="active-filters">
+        ${activeTags.map(t => `
+          <span class="active-filter-tag">${esc(t.label)}<button data-clear-filter="${t.key}">&times;</button></span>
+        `).join('')}
+        <button class="clear-filters" id="clear-all-filters">Clear all</button>
+      </div>` : ''}
+    </section>`;
+  }
+
+  function renderFilterGroup(name, options, current, phaseLookup) {
+    // phaseLookup is only used for the phase filter to display phase names
+    const labelMap = {
+      'priority': 'Priority',
+      'complexity': 'Complexity',
+      'impact': 'Impact',
+      'source': 'Source',
+      'status': 'Status',
+      'phase': 'Phase'
+    };
+    return `
+    <div class="filter-group">
+      <span class="filter-label">${labelMap[name] || name}</span>
+      ${options.map(opt => {
+        let label = opt;
+        if (name === 'phase' && opt !== 'all' && phaseLookup) {
+          const p = phaseLookup.find(ph => ph.id === opt);
+          label = p ? p.name : opt;
+        }
+        if (name === 'source' && opt !== 'all') {
+          label = sourceLabel(opt);
+        }
+        // Capitalize first letter for display
+        const displayLabel = label === 'all' ? 'All' : label === 'wont' ? "Won't" : label.charAt(0).toUpperCase() + label.slice(1);
+        return `<button class="filter-btn ${opt === current ? 'active' : ''}" data-filter="${name}" data-value="${esc(opt)}">${esc(displayLabel)}</button>`;
+      }).join('')}
+    </div>`;
+  }
+
+  function renderBoard(phaseFeatures) {
+    const phases = (data.phases || []).sort((a, b) => a.order - b.order);
+    const filtered = getFilteredFeatures();
+
+    if (filtered.length === 0 && getActiveFilterCount() > 0) {
+      return `
+      <section class="board-section">
+        <div class="no-results">
+          <div class="no-results-icon">&#128269;</div>
+          <div class="no-results-text">No features match your filters. Try adjusting or clearing them.</div>
+        </div>
+      </section>`;
+    }
+
+    return `
+    <section class="board-section">
+      <div class="board">
+        ${phases.map(phase => {
+          const features = phaseFeatures[phase.id] || [];
+          return `
+          <div class="board-column" data-phase-id="${esc(phase.id)}">
+            <div class="column-header">
+              <div class="column-title">${esc(phase.name)}</div>
+              ${phase.description ? `<div class="column-desc">${esc(phase.description)}</div>` : ''}
+              <div class="column-count">${features.length} feature${features.length !== 1 ? 's' : ''}</div>
+            </div>
+            <div class="column-cards">
+              ${features.length === 0 ? '<div class="column-empty">No matching features</div>' : ''}
+              ${features.map(f => renderFeatureCard(f)).join('')}
+              ${renderMilestones(phase)}
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </section>`;
+  }
+
+  function renderFeatureCard(feature) {
+    const src = parseSource(feature.source);
+    const isExpanded = state.expandedCards.has(feature.id);
+    const expandedClass = isExpanded ? ' expanded' : '';
+
+    return `
+    <div class="feature-card${expandedClass}" data-feature-id="${esc(feature.id)}" data-priority="${esc(feature.priority)}">
+      <div class="card-header">
+        <span class="card-title">${esc(feature.title)}</span>
+        <svg class="card-expand-icon" width="18" height="18"><use href="#icon-chevron-down"/></svg>
+      </div>
+      ${feature.description ? `<div class="card-description">${esc(feature.description)}</div>` : ''}
+      <div class="card-pills">
+        <span class="pill pill-status-${esc(feature.status)}">${esc(feature.status)}</span>
+        <span class="pill pill-complexity-${esc(feature.complexity)}">${esc(feature.complexity)} complexity</span>
+        <span class="pill pill-impact-${esc(feature.impact)}">${esc(feature.impact)} impact</span>
+        ${feature.source ? `<span class="pill pill-source pill-source-${esc(src.type)}">${esc(sourceLabel(src.type))}${src.detail ? ':' + esc(src.detail) : ''}</span>` : ''}
+      </div>
+      <div class="card-details">
+        ${feature.rationale ? `<div class="detail-section"><div class="rationale">${esc(feature.rationale)}</div></div>` : ''}
+
+        ${feature.user_stories && feature.user_stories.length > 0 ? `
+        <div class="detail-section">
+          <div class="detail-label">User Stories</div>
+          <ul class="detail-list">${feature.user_stories.map(s => `<li>${esc(s)}</li>`).join('')}</ul>
+        </div>` : ''}
+
+        ${feature.acceptance_criteria && feature.acceptance_criteria.length > 0 ? `
+        <div class="detail-section">
+          <div class="detail-label">Acceptance Criteria</div>
+          <ul class="detail-list">${feature.acceptance_criteria.map(c => `<li>${esc(c)}</li>`).join('')}</ul>
+        </div>` : ''}
+
+        ${feature.dependencies && feature.dependencies.length > 0 ? `
+        <div class="detail-section">
+          <div class="detail-label">Dependencies</div>
+          <div class="dep-badges">
+            ${feature.dependencies.map(depId => {
+              const dep = featureMap[depId];
+              const label = dep ? dep.title : depId;
+              return `<a class="dep-badge" data-dep-target="${esc(depId)}" href="#" title="Jump to ${esc(label)}">
+                <svg width="12" height="12"><use href="#icon-link"/></svg>
+                ${esc(label)}
+              </a>`;
+            }).join('')}
+          </div>
+        </div>` : ''}
+
+        ${feature.related_issues && feature.related_issues.length > 0 ? `
+        <div class="detail-section">
+          <div class="detail-label">Related Issues</div>
+          ${feature.related_issues.map(issue => `
+            <div class="issue-link">#${esc(String(issue.number))} ${esc(issue.title)} <span class="pill badge-muted" style="margin-left:4px">${esc(issue.relationship)}</span></div>
+          `).join('')}
+        </div>` : ''}
+
+        ${feature.dismissed_reason ? `
+        <div class="detail-section">
+          <div class="detail-label">Dismissed Reason</div>
+          <p style="font-size:0.78rem;color:var(--text-secondary)">${esc(feature.dismissed_reason)}</p>
+        </div>` : ''}
+
+        ${feature.gh_issue ? `
+        <a class="gh-issue-link" href="${esc(feature.gh_issue.url)}" target="_blank" rel="noopener">
+          GitHub Issue #${esc(String(feature.gh_issue.number))}
+        </a>` : ''}
+      </div>
+    </div>`;
+  }
+
+  function renderMilestones(phase) {
+    if (!phase.milestones || phase.milestones.length === 0) return '';
+    return `
+    <div class="milestones-section">
+      <div class="detail-label" style="padding:0 4px">Milestones</div>
+      ${phase.milestones.map(m => `
+        <div class="milestone-item" title="${esc(m.description || '')}">
+          <svg class="milestone-icon"><use href="#icon-flag"/></svg>
+          <span>${esc(m.title)}</span>
+          <span class="pill pill-status-${esc(m.status || 'planned')}" style="margin-left:auto">${esc(m.status || 'planned')}</span>
+        </div>
+      `).join('')}
+    </div>`;
+  }
+
+  function renderCompetitiveAnalysis() {
+    // Build competitive analysis from features that have competitor_insight_ids
+    // This section creates a comparison table: rows = features, columns = our project vs competitors
+    const featuresWithInsights = (data.features || []).filter(f =>
+      (f.competitor_insight_ids && f.competitor_insight_ids.length > 0) || parseSource(f.source).type === 'competitive'
+    );
+
+    if (featuresWithInsights.length === 0) return '';
+
+    // Collect unique competitor names from insights if available
+    // Since the data might not include full competitor details, we show what we have
+    return `
+    <section class="competitive-section">
+      <div class="collapsible-header" id="comp-toggle">
+        <svg class="collapsible-icon"><use href="#icon-chevron-down"/></svg>
+        <span class="collapsible-title">Competitive Analysis</span>
+        <span class="badge badge-muted">${featuresWithInsights.length} feature${featuresWithInsights.length !== 1 ? 's' : ''}</span>
+      </div>
+      <div class="collapsible-body" id="comp-body">
+        <div class="comp-table-wrapper">
+          <table class="comp-table">
+            <thead>
+              <tr>
+                <th>Feature</th>
+                <th>Priority</th>
+                <th>Source</th>
+                <th>Status</th>
+                <th>Insights</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${featuresWithInsights.map(f => {
+                const src = parseSource(f.source);
+                return `
+                <tr>
+                  <td><strong>${esc(f.title)}</strong></td>
+                  <td><span class="pill pill-status-${f.priority === 'must' ? 'dismissed' : f.priority === 'should' ? 'pending' : f.priority === 'could' ? 'created' : 'accepted'}" style="background:${priorityBg(f.priority)};color:${priorityColor(f.priority)}">${esc(f.priority)}</span></td>
+                  <td><span class="pill pill-source pill-source-${esc(src.type)}">${esc(sourceLabel(src.type))}</span></td>
+                  <td><span class="pill pill-status-${esc(f.status)}">${esc(f.status)}</span></td>
+                  <td>${(f.competitor_insight_ids || []).map(id => `<span class="badge badge-muted">${esc(id)}</span>`).join(' ') || '<span class="comp-unknown">-</span>'}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>`;
+  }
+
+  function priorityColor(p) {
+    const map = { must: 'var(--must)', should: 'var(--should)', could: 'var(--could)', wont: 'var(--wont)' };
+    return map[p] || 'var(--text-secondary)';
+  }
+  function priorityBg(p) {
+    const map = { must: 'var(--must-bg)', should: 'var(--should-bg)', could: 'var(--could-bg)', wont: 'var(--wont-bg)' };
+    return map[p] || 'var(--bg-tertiary)';
+  }
+
+  function renderStats() {
+    const features = data.features || [];
+    const phases = data.phases || [];
+    const meta = data.metadata || {};
+
+    // Priority breakdown
+    const byPriority = { must: 0, should: 0, could: 0, wont: 0 };
+    features.forEach(f => { if (byPriority[f.priority] !== undefined) byPriority[f.priority]++; });
+
+    // Source breakdown
+    const bySource = {};
+    features.forEach(f => {
+      const src = parseSource(f.source).type;
+      bySource[src] = (bySource[src] || 0) + 1;
+    });
+
+    // Source color map for dots
+    const srcColorMap = {
+      ideation: 'var(--src-ideation)',
+      competitive: 'var(--src-competitive)',
+      blindspot: 'var(--src-blindspot)',
+      'team-momentum': 'var(--src-momentum)',
+      'open-issue': 'var(--src-open-issue)'
+    };
+
+    return `
+    <footer class="stats-footer">
+      <div class="section-title">Statistics</div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Phases</div>
+          <div class="stat-value">${phases.length}</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Features</div>
+          <div class="stat-value">${features.length}</div>
+          <div class="stat-breakdown">
+            <span class="stat-breakdown-item"><span class="stat-breakdown-dot" style="background:var(--must)"></span> Must: ${byPriority.must}</span>
+            <span class="stat-breakdown-item"><span class="stat-breakdown-dot" style="background:var(--should)"></span> Should: ${byPriority.should}</span>
+            <span class="stat-breakdown-item"><span class="stat-breakdown-dot" style="background:var(--could)"></span> Could: ${byPriority.could}</span>
+            <span class="stat-breakdown-item"><span class="stat-breakdown-dot" style="background:var(--wont)"></span> Won't: ${byPriority.wont}</span>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">By Source</div>
+          <div class="stat-value">${Object.keys(bySource).length}</div>
+          <div class="stat-breakdown">
+            ${Object.entries(bySource).map(([src, count]) => `
+              <span class="stat-breakdown-item"><span class="stat-breakdown-dot" style="background:${srcColorMap[src] || 'var(--text-tertiary)'}"></span> ${esc(sourceLabel(src))}: ${count}</span>
+            `).join('')}
+          </div>
+        </div>
+        ${meta.commits_analyzed != null ? `
+        <div class="stat-card">
+          <div class="stat-label">Commits Analyzed</div>
+          <div class="stat-value">${meta.commits_analyzed.toLocaleString()}</div>
+        </div>` : ''}
+        ${meta.merged_prs_last_year != null ? `
+        <div class="stat-card">
+          <div class="stat-label">PRs Reviewed</div>
+          <div class="stat-value">${meta.merged_prs_last_year.toLocaleString()}</div>
+        </div>` : ''}
+        ${meta.open_issues_analyzed != null ? `
+        <div class="stat-card">
+          <div class="stat-label">Issues Analyzed</div>
+          <div class="stat-value">${meta.open_issues_analyzed.toLocaleString()}</div>
+        </div>` : ''}
+        ${meta.competitors_researched != null ? `
+        <div class="stat-card">
+          <div class="stat-label">Competitors Researched</div>
+          <div class="stat-value">${meta.competitors_researched}</div>
+        </div>` : ''}
+        ${meta.ideation_ideas_incorporated != null ? `
+        <div class="stat-card">
+          <div class="stat-label">Ideas Incorporated</div>
+          <div class="stat-value">${meta.ideation_ideas_incorporated}</div>
+        </div>` : ''}
+      </div>
+      <div style="text-align:center;padding-top:20px;font-size:0.72rem;color:var(--text-tertiary)">
+        Generated ${esc(formatDate(meta.created_at))}${meta.updated_at && meta.updated_at !== meta.created_at ? ' &middot; Updated ' + esc(formatDate(meta.updated_at)) : ''}
+      </div>
+    </footer>`;
+  }
+
+  // ── Event Binding ────────────────────────────────────────────
+  function bindEvents() {
+    // Theme toggle
+    const themeBtn = document.getElementById('theme-toggle');
+    if (themeBtn) themeBtn.addEventListener('click', function() { toggleTheme(); });
+
+    // Filter buttons
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const filterName = this.getAttribute('data-filter');
+        const value = this.getAttribute('data-value');
+        state.filters[filterName] = value;
+        render();
+      });
+    });
+
+    // Search input
+    const searchInput = document.getElementById('filter-search');
+    if (searchInput) {
+      let debounce;
+      searchInput.addEventListener('input', function() {
+        clearTimeout(debounce);
+        const val = this.value;
+        debounce = setTimeout(function() {
+          state.filters.search = val;
+          render();
+          // Re-focus and restore cursor position after re-render
+          const newInput = document.getElementById('filter-search');
+          if (newInput) {
+            newInput.focus();
+            newInput.setSelectionRange(val.length, val.length);
+          }
+        }, 250);
+      });
+    }
+
+    // Clear individual filter tags
+    document.querySelectorAll('[data-clear-filter]').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const key = this.getAttribute('data-clear-filter');
+        if (key === 'search') {
+          state.filters.search = '';
+        } else {
+          state.filters[key] = 'all';
+        }
+        render();
+      });
+    });
+
+    // Clear all filters
+    const clearAll = document.getElementById('clear-all-filters');
+    if (clearAll) {
+      clearAll.addEventListener('click', function() {
+        state.filters = { priority: 'all', complexity: 'all', impact: 'all', source: 'all', phase: 'all', status: 'all', search: '' };
+        render();
+      });
+    }
+
+    // Feature card expand/collapse
+    document.querySelectorAll('.feature-card').forEach(card => {
+      card.addEventListener('click', function(e) {
+        // Don't toggle if clicking a link or button inside the card
+        if (e.target.closest('a') || e.target.closest('button')) return;
+        const id = this.getAttribute('data-feature-id');
+        if (state.expandedCards.has(id)) {
+          state.expandedCards.delete(id);
+        } else {
+          state.expandedCards.add(id);
+        }
+        render();
+      });
+    });
+
+    // Dependency badge click: scroll to and highlight target feature
+    document.querySelectorAll('.dep-badge').forEach(badge => {
+      badge.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        const targetId = this.getAttribute('data-dep-target');
+        scrollToFeature(targetId);
+      });
+    });
+
+    // Timeline phase click: filter by phase
+    document.querySelectorAll('.timeline-phase').forEach(el => {
+      el.addEventListener('click', function() {
+        const phaseId = this.getAttribute('data-phase-id');
+        // Toggle: if already filtering by this phase, clear it
+        if (state.filters.phase === phaseId) {
+          state.filters.phase = 'all';
+        } else {
+          state.filters.phase = phaseId;
+        }
+        render();
+      });
+    });
+
+    // Competitive analysis collapsible toggle
+    const compToggle = document.getElementById('comp-toggle');
+    if (compToggle) {
+      compToggle.addEventListener('click', function() {
+        this.classList.toggle('open');
+        const body = document.getElementById('comp-body');
+        if (body) body.classList.toggle('open');
+      });
+    }
+  }
+
+  // Scroll to a feature card, expanding it and highlighting briefly
+  function scrollToFeature(featureId) {
+    // First ensure the feature is visible (clear phase filter if needed)
+    const feature = featureMap[featureId];
+    if (!feature) return;
+
+    // If the feature's phase is filtered out, clear the phase filter
+    if (state.filters.phase !== 'all' && feature.phase_id !== state.filters.phase) {
+      state.filters.phase = 'all';
+      state.expandedCards.add(featureId);
+      render();
+    }
+
+    // Expand the target card
+    if (!state.expandedCards.has(featureId)) {
+      state.expandedCards.add(featureId);
+      render();
+    }
+
+    // Scroll to the card
+    const card = document.querySelector(`.feature-card[data-feature-id="${featureId}"]`);
+    if (card) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      card.classList.add('highlight');
+      setTimeout(function() { card.classList.remove('highlight'); }, 2000);
+    }
+  }
+
+  // ── Initial Render ───────────────────────────────────────────
+  render();
+
+})();
+</script>
+</body>
+</html>
