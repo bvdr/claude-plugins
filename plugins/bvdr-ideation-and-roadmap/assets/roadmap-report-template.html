@@ -184,6 +184,45 @@ body {
 [data-theme="light"] .theme-toggle .icon-moon { display: none; }
 [data-theme="dark"] .theme-toggle .icon-sun { display: none; }
 
+/* Sync to Claude button — only shown when there are unsaved status changes */
+.sync-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid #d97706;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 1px 3px rgba(217,119,6,0.3);
+}
+.sync-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(217,119,6,0.4);
+}
+.sync-btn svg {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.sync-btn .sync-badge {
+  background: rgba(255,255,255,0.3);
+  border-radius: 999px;
+  padding: 0 6px;
+  font-size: 0.7rem;
+  min-width: 18px;
+  text-align: center;
+}
+
 /* ── Phase Timeline ───────────────────────────────────────────── */
 .timeline-section { padding: 28px 0 20px; border-bottom: 1px solid var(--border); }
 .section-title {
@@ -298,6 +337,50 @@ body {
 .filter-btn:hover { background: var(--bg-hover); color: var(--text-primary); }
 .filter-btn.active { background: var(--accent); color: #fff; }
 .filter-btn + .filter-btn { border-left: 1px solid var(--border); }
+
+/* MoSCoW priority pills in filter bar — clickable quick filters (same pattern as ideation type badges) */
+.priority-pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.priority-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.2s, box-shadow 0.2s, transform 0.15s;
+  user-select: none;
+}
+.priority-pill:hover {
+  opacity: 0.85;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.priority-pill.active {
+  box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px currentColor;
+  transform: translateY(-1px);
+}
+.priority-pill.dimmed {
+  opacity: 0.35;
+}
+.priority-pill .pill-count {
+  background: rgba(255,255,255,0.3);
+  border-radius: 999px;
+  padding: 0 5px;
+  font-size: 0.65rem;
+  min-width: 18px;
+  text-align: center;
+}
+.priority-pill[data-priority="must"] { background: var(--must); color: #fff; }
+.priority-pill[data-priority="should"] { background: var(--should); color: #fff; }
+.priority-pill[data-priority="could"] { background: var(--could); color: #fff; }
+.priority-pill[data-priority="wont"] { background: var(--wont); color: #fff; }
 
 .search-input {
   padding: 7px 12px;
@@ -436,6 +519,110 @@ body {
 .feature-card[data-priority="could"] { border-left-color: var(--could); }
 .feature-card[data-priority="wont"] { border-left-color: var(--wont); }
 
+/* Accepted cards get a green glow */
+.feature-card.status-accepted {
+  box-shadow: inset 0 0 0 1px var(--status-accepted), var(--shadow-sm);
+}
+/* Dismissed cards get reduced opacity */
+.feature-card.status-dismissed {
+  opacity: 0.45;
+}
+.feature-card.status-dismissed .card-title {
+  text-decoration: line-through;
+}
+
+/* ── Card Action Buttons (thumbs up/down) ──────────────────────
+ * Positioned absolute top-right, hidden by default, shown on hover.
+ * Always visible on accepted/dismissed cards.
+ * Hidden entirely on created cards (already has a GH issue).
+ */
+.card-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.feature-card:hover .card-actions {
+  opacity: 1;
+}
+.card-actions button {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  padding: 0;
+  color: var(--text-tertiary);
+}
+.card-actions button svg {
+  width: 14px;
+  height: 14px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.card-actions button:hover {
+  transform: scale(1.15);
+}
+.card-actions .btn-accept:hover {
+  background: #d1fae5;
+  border-color: var(--status-accepted);
+  color: #059669;
+}
+.card-actions .btn-dismiss:hover {
+  background: #fee2e2;
+  border-color: var(--status-dismissed);
+  color: #dc2626;
+}
+[data-theme="dark"] .card-actions .btn-accept:hover {
+  background: #064e3b;
+  color: #34d399;
+}
+[data-theme="dark"] .card-actions .btn-dismiss:hover {
+  background: #7f1d1d;
+  color: #f87171;
+}
+/* Highlight active action, keep both clickable for toggle-off */
+.feature-card.status-accepted .btn-accept {
+  background: #d1fae5;
+  border-color: var(--status-accepted);
+  color: #059669;
+  opacity: 1;
+}
+.feature-card.status-dismissed .btn-dismiss {
+  background: #fee2e2;
+  border-color: var(--status-dismissed);
+  color: #dc2626;
+  opacity: 1;
+}
+[data-theme="dark"] .feature-card.status-accepted .btn-accept {
+  background: #064e3b;
+  color: #34d399;
+}
+[data-theme="dark"] .feature-card.status-dismissed .btn-dismiss {
+  background: #7f1d1d;
+  color: #f87171;
+}
+/* Always show actions on actioned cards */
+.feature-card.status-accepted .card-actions,
+.feature-card.status-dismissed .card-actions {
+  opacity: 1;
+}
+/* Created cards (GH issue exists) — no review actions needed */
+.feature-card.status-created .card-actions {
+  display: none;
+}
+
 .card-header {
   display: flex;
   justify-content: space-between;
@@ -448,6 +635,23 @@ body {
   font-weight: 600;
   line-height: 1.3;
   flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+/* GitHub octicon prefix on created cards */
+.gh-link {
+  color: var(--text-tertiary);
+  display: inline-flex;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+.gh-link:hover {
+  color: var(--text-primary);
+}
+.gh-link svg {
+  width: 14px;
+  height: 14px;
 }
 .card-expand-icon {
   flex-shrink: 0;
@@ -518,6 +722,8 @@ body {
 .pill-status-accepted { background: var(--status-accepted-bg); color: var(--status-accepted); }
 .pill-status-dismissed { background: var(--status-dismissed-bg); color: var(--status-dismissed); }
 .pill-status-created { background: var(--status-created-bg); color: var(--status-created); }
+.pill-status-created a { color: inherit; text-decoration: none; }
+.pill-status-created a:hover { text-decoration: underline; }
 
 /* Expanded card details */
 .card-details {
@@ -742,6 +948,29 @@ body {
   border-radius: 50%;
 }
 
+/* ── Save Toast ───────────────────────────────────────────────── */
+.save-toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--status-accepted);
+  color: var(--text-primary);
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+  font-size: 0.8rem;
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s, transform 0.3s;
+  pointer-events: none;
+  z-index: 200;
+}
+.save-toast.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 /* ── No Results ───────────────────────────────────────────────── */
 .no-results {
   text-align: center;
@@ -834,6 +1063,9 @@ const ROADMAP_DATA = {{ROADMAP_DATA}};
   <symbol id="icon-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
   </symbol>
+  <symbol id="icon-github" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+  </symbol>
 </svg>
 
 <div id="app"></div>
@@ -922,6 +1154,234 @@ const ROADMAP_DATA = {{ROADMAP_DATA}};
 
   initTheme();
 
+  // ── Status Management ────────────────────────────────────────
+  // Statuses are stored in-memory (mutating ROADMAP_DATA) + localStorage for persistence across reloads.
+  // On reload, overrides are reconciled: stale ones (already synced, or status=created) are discarded.
+  const STATUS_STORAGE_KEY = 'roadmap-statuses-' + (data.id || 'default');
+  let hasUnsavedChanges = false;
+
+  function initStatusOverrides() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STATUS_STORAGE_KEY) || '{}');
+      const stillNeeded = {};
+      (data.features || []).forEach(feature => {
+        const override = saved[feature.id];
+        if (!override) return;
+        // If the JSON already has this status (or a more advanced one like "created"), the override is stale
+        if (feature.status === override || feature.status === 'created') return;
+        // Still pending in JSON but user already reviewed it in browser — apply override
+        feature.status = override;
+        feature.reviewed_at = feature.reviewed_at || new Date().toISOString();
+        stillNeeded[feature.id] = override;
+      });
+      if (Object.keys(stillNeeded).length > 0) {
+        localStorage.setItem(STATUS_STORAGE_KEY, JSON.stringify(stillNeeded));
+        hasUnsavedChanges = true;
+      } else {
+        localStorage.removeItem(STATUS_STORAGE_KEY);
+        hasUnsavedChanges = false;
+      }
+    } catch {}
+  }
+
+  function getFeatureStatus(id) {
+    const f = (data.features || []).find(f => f.id === id);
+    return f ? (f.status || 'pending') : null;
+  }
+
+  function setFeatureStatus(featureId, status) {
+    const feature = (data.features || []).find(f => f.id === featureId);
+    if (!feature) return;
+    // Never allow changing status on features that already have GH issues
+    if (feature.status === 'created') return;
+    // Toggle: clicking the same action again resets to pending
+    feature.status = feature.status === status ? 'pending' : status;
+    feature.reviewed_at = new Date().toISOString();
+    // Persist all non-pending statuses to localStorage
+    const overrides = {};
+    (data.features || []).forEach(f => {
+      if (f.status && f.status !== 'pending') overrides[f.id] = f.status;
+    });
+    localStorage.setItem(STATUS_STORAGE_KEY, JSON.stringify(overrides));
+    hasUnsavedChanges = true;
+    updateSyncButton();
+    // Re-render to reflect new state
+    render();
+    // Restore scroll position and keep the card expanded if it was
+    showToast(feature.status === 'pending' ? 'Reset to pending' : feature.status.charAt(0).toUpperCase() + feature.status.slice(1));
+  }
+
+  function updateSyncButton() {
+    const features = data.features || [];
+    const acceptedCount = features.filter(f => f.status === 'accepted').length;
+    const dismissedCount = features.filter(f => f.status === 'dismissed').length;
+    const needsIssueCount = features.filter(f => f.status === 'accepted' && !f.gh_issue).length;
+    const reviewedCount = acceptedCount + dismissedCount;
+    const show = hasUnsavedChanges && reviewedCount > 0;
+    const syncBtn = document.getElementById('sync-btn');
+    const badge = document.getElementById('sync-count');
+    if (syncBtn) {
+      syncBtn.style.display = show ? 'inline-flex' : 'none';
+      syncBtn.title = `${acceptedCount} accepted (${needsIssueCount} need GH issues), ${dismissedCount} dismissed — copy prompt to clipboard`;
+    }
+    if (badge) badge.textContent = reviewedCount;
+  }
+
+  function showToast(msg) {
+    let toast = document.getElementById('save-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'save-toast';
+      toast.className = 'save-toast';
+      document.body.appendChild(toast);
+    }
+    toast.textContent = msg;
+    toast.classList.add('visible');
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(function() { toast.classList.remove('visible'); }, 2500);
+  }
+
+  // ── Build Claude Prompt ──────────────────────────────────────
+  // Generates a full instructions prompt for Claude Code to:
+  //   1. Update roadmap.json feature statuses
+  //   2. Create GH issues for accepted features without existing ones
+  //      (includes acceptance criteria, user stories, phase info in the issue body)
+  //   3. Update issues-tracker.json
+  //   4. Regenerate report.html
+  function buildClaudePrompt() {
+    const features = data.features || [];
+    const accepted = features.filter(f => f.status === 'accepted');
+    const dismissed = features.filter(f => f.status === 'dismissed');
+    const needsIssue = accepted.filter(f => !f.gh_issue);
+    const alreadyHasIssue = accepted.filter(f => f.gh_issue);
+    const projectName = data.project_name || 'unknown';
+
+    const reportPath = window.location.pathname;
+    const roadmapDir = reportPath.replace(/\/report\.html$/, '');
+    const roadmapJsonPath = roadmapDir + '/roadmap.json';
+    const trackerPath = roadmapDir + '/issues-tracker.json';
+
+    let prompt = `Update the roadmap review for project "${projectName}" and create GitHub issues for accepted features.\n\n`;
+    prompt += `Files:\n`;
+    prompt += `- Roadmap JSON: ${roadmapJsonPath}\n`;
+    prompt += `- Issues tracker: ${trackerPath}\n`;
+    prompt += `- Report: ${roadmapDir}/report.html\n\n`;
+    prompt += `Total features: ${features.length} | Reviewed: ${accepted.length + dismissed.length} | Accepted: ${accepted.length} | Dismissed: ${dismissed.length}\n\n`;
+
+    if (accepted.length > 0) {
+      prompt += `## Accepted Features (${accepted.length})\n\n`;
+      accepted.forEach(f => {
+        const phase = phaseMap[f.phase_id];
+        const phaseName = phase ? phase.name : (f.phase_id || 'unknown');
+        const hasIssue = f.gh_issue ? ` [already has Issue #${f.gh_issue.number}]` : ' [NEEDS GH ISSUE]';
+        prompt += `- **${f.id}**: "${f.title}" (priority: ${f.priority}, phase: ${phaseName}, complexity: ${f.complexity || 'unknown'})${hasIssue}\n`;
+      });
+      prompt += `\n`;
+    }
+
+    if (dismissed.length > 0) {
+      prompt += `## Dismissed Features (${dismissed.length})\n\n`;
+      dismissed.forEach(f => {
+        const reason = f.dismissed_reason ? ` — reason: "${f.dismissed_reason}"` : '';
+        prompt += `- **${f.id}**: "${f.title}"${reason}\n`;
+      });
+      prompt += `\n`;
+    }
+
+    prompt += `## Instructions\n\n`;
+    prompt += `### Step 1: Update roadmap.json\n`;
+    prompt += `1. Read ${roadmapJsonPath}\n`;
+    prompt += `2. For each feature listed above, update its "status" to "accepted" or "dismissed" and set "reviewed_at" to current ISO timestamp\n`;
+    prompt += `3. Set metadata.updated_at to current ISO timestamp\n`;
+    prompt += `4. Write the updated JSON back\n\n`;
+
+    if (needsIssue.length > 0) {
+      prompt += `### Step 2: Create GitHub Issues (${needsIssue.length} issues)\n\n`;
+      prompt += `For each accepted feature that needs a GH issue, run:\n\n`;
+      prompt += `\`\`\`\n`;
+      prompt += `gh issue create --title "{title}" --body "{body}" --label "roadmap,{priority}-priority,roadmap-generated"\n`;
+      prompt += `\`\`\`\n\n`;
+      prompt += `Issue body format:\n`;
+      prompt += `\`\`\`markdown\n`;
+      prompt += `## {title}\n\n`;
+      prompt += `{description}\n\n`;
+      prompt += `### Phase\n`;
+      prompt += `{phase_name} ({phase_id})\n\n`;
+      prompt += `### Priority\n`;
+      prompt += `{priority} (MoSCoW)\n\n`;
+      prompt += `### User Stories\n`;
+      prompt += `{list of user_stories as bullet points}\n\n`;
+      prompt += `### Acceptance Criteria\n`;
+      prompt += `{list of acceptance_criteria as bullet points}\n\n`;
+      prompt += `### Rationale\n`;
+      prompt += `{rationale}\n\n`;
+      prompt += `### Complexity / Impact\n`;
+      prompt += `Complexity: {complexity} | Impact: {impact}\n\n`;
+      prompt += `---\n`;
+      prompt += `*Generated by bvdr-ideation-and-roadmap plugin — Source: {source} — {id}*\n`;
+      prompt += `\`\`\`\n\n`;
+      prompt += `Features that need issues:\n`;
+      needsIssue.forEach(f => {
+        const phase = phaseMap[f.phase_id];
+        const phaseName = phase ? phase.name : (f.phase_id || 'unknown');
+        prompt += `- ${f.id}: "${f.title}" → priority: ${f.priority}, phase: ${phaseName}, complexity: ${f.complexity || 'unknown'}, impact: ${f.impact || 'unknown'}\n`;
+      });
+      prompt += `\n`;
+      prompt += `After creating each issue:\n`;
+      prompt += `1. Update the feature's "status" to "created" in roadmap.json\n`;
+      prompt += `2. Set "gh_issue": { "number": <issue_number>, "url": "<issue_url>" }\n`;
+      prompt += `3. Append to ${trackerPath} (create if doesn't exist):\n`;
+      prompt += `   { "created_issues": [{ "feature_id": "<id>", "gh_issue_number": <n>, "gh_issue_url": "<url>", "created_at": "<ISO>" }] }\n`;
+      prompt += `4. Check issues-tracker.json before creating — skip if feature_id already exists\n\n`;
+    }
+
+    if (alreadyHasIssue.length > 0) {
+      prompt += `### Already has GH issues (skip these):\n`;
+      alreadyHasIssue.forEach(f => {
+        prompt += `- ${f.id}: Issue #${f.gh_issue.number}\n`;
+      });
+      prompt += `\n`;
+    }
+
+    prompt += `### Step ${needsIssue.length > 0 ? '3' : '2'}: Regenerate report.html\n`;
+    prompt += `Find the roadmap-report-template.html from the bvdr-ideation-and-roadmap plugin, replace {{ROADMAP_DATA}} with the updated roadmap.json content, and write to ${roadmapDir}/report.html\n`;
+
+    return prompt;
+  }
+
+  function copyClaudePrompt() {
+    const prompt = buildClaudePrompt();
+    if (!prompt) return;
+    try {
+      navigator.clipboard.writeText(prompt);
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = prompt;
+      ta.style.cssText = 'position:fixed;left:-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    showToast('Copied to clipboard! Paste in Claude Code.');
+  }
+
+  // ── Priority pill filtering ───────────────────────────────────
+  // Same pattern as ideation type badges: click to filter, click again to clear.
+  function syncPriorityPillStates() {
+    document.querySelectorAll('.priority-pill').forEach(pill => {
+      const p = pill.getAttribute('data-priority');
+      pill.classList.toggle('active', p === state.filters.priority);
+      pill.classList.toggle('dimmed', state.filters.priority !== 'all' && p !== state.filters.priority);
+    });
+  }
+
+  function togglePriorityPill(priority) {
+    state.filters.priority = state.filters.priority === priority ? 'all' : priority;
+    syncPriorityPillStates();
+    render();
+  }
+
   // ── Filtering ────────────────────────────────────────────────
   function matchesFilters(feature) {
     const f = state.filters;
@@ -944,6 +1404,15 @@ const ROADMAP_DATA = {{ROADMAP_DATA}};
 
   function getFilteredFeatures() {
     return (data.features || []).filter(matchesFilters);
+  }
+
+  // Sort features: dismissed always go to the bottom within a column
+  function getSortedFeaturesForColumn(features) {
+    return [...features].sort((a, b) => {
+      const aDismissed = a.status === 'dismissed' ? 1 : 0;
+      const bDismissed = b.status === 'dismissed' ? 1 : 0;
+      return aDismissed - bDismissed;
+    });
   }
 
   function getActiveFilterCount() {
@@ -976,6 +1445,7 @@ const ROADMAP_DATA = {{ROADMAP_DATA}};
     app.innerHTML = `
       ${renderHeader()}
       <div class="container">
+        ${renderPriorityPills()}
         ${renderTimeline()}
         ${renderFilters()}
         ${renderBoard(phaseFeatures)}
@@ -985,6 +1455,8 @@ const ROADMAP_DATA = {{ROADMAP_DATA}};
     `;
 
     bindEvents();
+    updateSyncButton();
+    syncPriorityPillStates();
   }
 
   function renderHeader() {
@@ -1008,6 +1480,11 @@ const ROADMAP_DATA = {{ROADMAP_DATA}};
             </div>` : ''}
           </div>
           <div class="header-right">
+            <!-- Sync button only shown when there are unsaved status changes -->
+            <button class="sync-btn" id="sync-btn" title="Copy sync prompt to clipboard" onclick="copyClaudePromptGlobal()" style="display:none">
+              <svg viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+              Copy <span class="sync-badge" id="sync-count">0</span>
+            </button>
             <button class="theme-toggle" id="theme-toggle" title="Toggle dark/light mode">
               <svg class="icon-sun" width="18" height="18"><use href="#icon-sun"/></svg>
               <svg class="icon-moon" width="18" height="18"><use href="#icon-moon"/></svg>
@@ -1016,6 +1493,21 @@ const ROADMAP_DATA = {{ROADMAP_DATA}};
         </div>
       </div>
     </header>`;
+  }
+
+  // MoSCoW priority pills — act as quick filter toggles (same as type badges in ideation)
+  function renderPriorityPills() {
+    const features = data.features || [];
+    const counts = { must: 0, should: 0, could: 0, wont: 0 };
+    features.forEach(f => { if (counts[f.priority] !== undefined) counts[f.priority]++; });
+    const labels = { must: 'Must Have', should: 'Should Have', could: 'Could Have', wont: "Won't Have" };
+
+    return `
+    <div class="priority-pills" style="padding: 16px 0 8px">
+      ${Object.entries(counts).filter(([,c]) => c > 0).map(([p, c]) => `
+        <span class="priority-pill" data-priority="${p}" onclick="togglePriorityPillGlobal('${p}')">${esc(labels[p])} <span class="pill-count">${c}</span></span>
+      `).join('')}
+    </div>`;
   }
 
   function renderTimeline() {
@@ -1064,7 +1556,6 @@ const ROADMAP_DATA = {{ROADMAP_DATA}};
     <section class="filters-section">
       <div class="filters-row">
         <input type="text" class="search-input" id="filter-search" placeholder="Search features..." value="${esc(f.search)}">
-        ${renderFilterGroup('priority', ['all', 'must', 'should', 'could', 'wont'], f.priority)}
         ${renderFilterGroup('complexity', ['all', 'low', 'medium', 'high'], f.complexity)}
         ${renderFilterGroup('impact', ['all', 'low', 'medium', 'high'], f.impact)}
         ${renderFilterGroup('source', ['all', 'ideation', 'competitive', 'blindspot', 'team-momentum', 'open-issue'], f.source)}
@@ -1082,9 +1573,7 @@ const ROADMAP_DATA = {{ROADMAP_DATA}};
   }
 
   function renderFilterGroup(name, options, current, phaseLookup) {
-    // phaseLookup is only used for the phase filter to display phase names
     const labelMap = {
-      'priority': 'Priority',
       'complexity': 'Complexity',
       'impact': 'Impact',
       'source': 'Source',
@@ -1103,7 +1592,6 @@ const ROADMAP_DATA = {{ROADMAP_DATA}};
         if (name === 'source' && opt !== 'all') {
           label = sourceLabel(opt);
         }
-        // Capitalize first letter for display
         const displayLabel = label === 'all' ? 'All' : label === 'wont' ? "Won't" : label.charAt(0).toUpperCase() + label.slice(1);
         return `<button class="filter-btn ${opt === current ? 'active' : ''}" data-filter="${name}" data-value="${esc(opt)}">${esc(displayLabel)}</button>`;
       }).join('')}
@@ -1128,7 +1616,8 @@ const ROADMAP_DATA = {{ROADMAP_DATA}};
     <section class="board-section">
       <div class="board">
         ${phases.map(phase => {
-          const features = phaseFeatures[phase.id] || [];
+          // Sort dismissed features to the bottom within each column
+          const features = getSortedFeaturesForColumn(phaseFeatures[phase.id] || []);
           return `
           <div class="board-column" data-phase-id="${esc(phase.id)}">
             <div class="column-header">
@@ -1151,16 +1640,54 @@ const ROADMAP_DATA = {{ROADMAP_DATA}};
     const src = parseSource(feature.source);
     const isExpanded = state.expandedCards.has(feature.id);
     const expandedClass = isExpanded ? ' expanded' : '';
+    const featureStatus = getFeatureStatus(feature.id) || feature.status || 'pending';
+    const statusClass = featureStatus ? ' status-' + featureStatus : '';
+
+    // GitHub icon before title for created features that have an issue
+    let ghTitlePrefix = '';
+    if (featureStatus === 'created' && feature.gh_issue) {
+      const href = feature.gh_issue.url ? esc(feature.gh_issue.url) : '#';
+      const issueNum = feature.gh_issue.number || '';
+      ghTitlePrefix = `<a href="${href}" target="_blank" rel="noopener" class="gh-link" title="View Issue${issueNum ? ' #' + issueNum : ''} on GitHub"><svg width="14" height="14"><use href="#icon-github"/></svg></a>`;
+    }
+
+    // Status pill for the card pills row
+    let statusPill = '';
+    if (featureStatus === 'accepted') {
+      statusPill = '<span class="pill pill-status-accepted">Accepted</span>';
+    } else if (featureStatus === 'dismissed') {
+      statusPill = '<span class="pill pill-status-dismissed">Dismissed</span>';
+    } else if (featureStatus === 'created') {
+      if (feature.gh_issue && feature.gh_issue.url) {
+        statusPill = `<span class="pill pill-status-created"><a href="${esc(feature.gh_issue.url)}" target="_blank" rel="noopener">Issue #${esc(String(feature.gh_issue.number))}</a></span>`;
+      } else if (feature.gh_issue && feature.gh_issue.number) {
+        statusPill = `<span class="pill pill-status-created">Issue #${esc(String(feature.gh_issue.number))}</span>`;
+      } else {
+        statusPill = '<span class="pill pill-status-created">Created</span>';
+      }
+    } else {
+      statusPill = `<span class="pill pill-status-${esc(featureStatus)}">${esc(featureStatus)}</span>`;
+    }
 
     return `
-    <div class="feature-card${expandedClass}" data-feature-id="${esc(feature.id)}" data-priority="${esc(feature.priority)}">
+    <div class="feature-card${expandedClass}${statusClass}" data-feature-id="${esc(feature.id)}" data-priority="${esc(feature.priority)}">
+      <!-- Thumbs up/down action buttons — hidden on created cards, always visible on accepted/dismissed -->
+      <div class="card-actions">
+        <button class="btn-accept" onclick="event.stopPropagation();setFeatureStatusGlobal('${esc(feature.id)}','accepted')" title="Accept">
+          <svg viewBox="0 0 24 24"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+        </button>
+        <button class="btn-dismiss" onclick="event.stopPropagation();setFeatureStatusGlobal('${esc(feature.id)}','dismissed')" title="Dismiss">
+          <svg viewBox="0 0 24 24"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z"/></svg>
+        </button>
+      </div>
       <div class="card-header">
-        <span class="card-title">${esc(feature.title)}</span>
+        <!-- GH icon before title for created features -->
+        <span class="card-title">${ghTitlePrefix}${esc(feature.title)}</span>
         <svg class="card-expand-icon" width="18" height="18"><use href="#icon-chevron-down"/></svg>
       </div>
       ${feature.description ? `<div class="card-description">${esc(feature.description)}</div>` : ''}
       <div class="card-pills">
-        <span class="pill pill-status-${esc(feature.status)}">${esc(feature.status)}</span>
+        ${statusPill}
         <span class="pill pill-complexity-${esc(feature.complexity)}">${esc(feature.complexity)} complexity</span>
         <span class="pill pill-impact-${esc(feature.impact)}">${esc(feature.impact)} impact</span>
         ${feature.source ? `<span class="pill pill-source pill-source-${esc(src.type)}">${esc(sourceLabel(src.type))}${src.detail ? ':' + esc(src.detail) : ''}</span>` : ''}
@@ -1208,11 +1735,6 @@ const ROADMAP_DATA = {{ROADMAP_DATA}};
           <div class="detail-label">Dismissed Reason</div>
           <p style="font-size:0.78rem;color:var(--text-secondary)">${esc(feature.dismissed_reason)}</p>
         </div>` : ''}
-
-        ${feature.gh_issue ? `
-        <a class="gh-issue-link" href="${esc(feature.gh_issue.url)}" target="_blank" rel="noopener">
-          GitHub Issue #${esc(String(feature.gh_issue.number))}
-        </a>` : ''}
       </div>
     </div>`;
   }
@@ -1233,16 +1755,12 @@ const ROADMAP_DATA = {{ROADMAP_DATA}};
   }
 
   function renderCompetitiveAnalysis() {
-    // Build competitive analysis from features that have competitor_insight_ids
-    // This section creates a comparison table: rows = features, columns = our project vs competitors
     const featuresWithInsights = (data.features || []).filter(f =>
       (f.competitor_insight_ids && f.competitor_insight_ids.length > 0) || parseSource(f.source).type === 'competitive'
     );
 
     if (featuresWithInsights.length === 0) return '';
 
-    // Collect unique competitor names from insights if available
-    // Since the data might not include full competitor details, we show what we have
     return `
     <section class="competitive-section">
       <div class="collapsible-header" id="comp-toggle">
@@ -1268,7 +1786,7 @@ const ROADMAP_DATA = {{ROADMAP_DATA}};
                 return `
                 <tr>
                   <td><strong>${esc(f.title)}</strong></td>
-                  <td><span class="pill pill-status-${f.priority === 'must' ? 'dismissed' : f.priority === 'should' ? 'pending' : f.priority === 'could' ? 'created' : 'accepted'}" style="background:${priorityBg(f.priority)};color:${priorityColor(f.priority)}">${esc(f.priority)}</span></td>
+                  <td><span class="pill" style="background:${priorityBg(f.priority)};color:${priorityColor(f.priority)}">${esc(f.priority)}</span></td>
                   <td><span class="pill pill-source pill-source-${esc(src.type)}">${esc(sourceLabel(src.type))}</span></td>
                   <td><span class="pill pill-status-${esc(f.status)}">${esc(f.status)}</span></td>
                   <td>${(f.competitor_insight_ids || []).map(id => `<span class="badge badge-muted">${esc(id)}</span>`).join(' ') || '<span class="comp-unknown">-</span>'}</td>
@@ -1380,12 +1898,14 @@ const ROADMAP_DATA = {{ROADMAP_DATA}};
     const themeBtn = document.getElementById('theme-toggle');
     if (themeBtn) themeBtn.addEventListener('click', function() { toggleTheme(); });
 
-    // Filter buttons
+    // Filter buttons (complexity, impact, source, status, phase)
     document.querySelectorAll('.filter-btn').forEach(btn => {
       btn.addEventListener('click', function() {
         const filterName = this.getAttribute('data-filter');
         const value = this.getAttribute('data-value');
         state.filters[filterName] = value;
+        // Sync priority pill state if priority filter was changed via button group
+        if (filterName === 'priority') syncPriorityPillStates();
         render();
       });
     });
@@ -1400,7 +1920,6 @@ const ROADMAP_DATA = {{ROADMAP_DATA}};
         debounce = setTimeout(function() {
           state.filters.search = val;
           render();
-          // Re-focus and restore cursor position after re-render
           const newInput = document.getElementById('filter-search');
           if (newInput) {
             newInput.focus();
@@ -1419,6 +1938,7 @@ const ROADMAP_DATA = {{ROADMAP_DATA}};
         } else {
           state.filters[key] = 'all';
         }
+        syncPriorityPillStates();
         render();
       });
     });
@@ -1428,14 +1948,14 @@ const ROADMAP_DATA = {{ROADMAP_DATA}};
     if (clearAll) {
       clearAll.addEventListener('click', function() {
         state.filters = { priority: 'all', complexity: 'all', impact: 'all', source: 'all', phase: 'all', status: 'all', search: '' };
+        syncPriorityPillStates();
         render();
       });
     }
 
-    // Feature card expand/collapse
+    // Feature card expand/collapse (don't toggle if clicking a link or button inside)
     document.querySelectorAll('.feature-card').forEach(card => {
       card.addEventListener('click', function(e) {
-        // Don't toggle if clicking a link or button inside the card
         if (e.target.closest('a') || e.target.closest('button')) return;
         const id = this.getAttribute('data-feature-id');
         if (state.expandedCards.has(id)) {
@@ -1457,16 +1977,11 @@ const ROADMAP_DATA = {{ROADMAP_DATA}};
       });
     });
 
-    // Timeline phase click: filter by phase
+    // Timeline phase click: filter by phase (toggle)
     document.querySelectorAll('.timeline-phase').forEach(el => {
       el.addEventListener('click', function() {
         const phaseId = this.getAttribute('data-phase-id');
-        // Toggle: if already filtering by this phase, clear it
-        if (state.filters.phase === phaseId) {
-          state.filters.phase = 'all';
-        } else {
-          state.filters.phase = phaseId;
-        }
+        state.filters.phase = state.filters.phase === phaseId ? 'all' : phaseId;
         render();
       });
     });
@@ -1484,24 +1999,21 @@ const ROADMAP_DATA = {{ROADMAP_DATA}};
 
   // Scroll to a feature card, expanding it and highlighting briefly
   function scrollToFeature(featureId) {
-    // First ensure the feature is visible (clear phase filter if needed)
     const feature = featureMap[featureId];
     if (!feature) return;
 
-    // If the feature's phase is filtered out, clear the phase filter
+    // If the feature's phase is filtered out, clear the phase filter first
     if (state.filters.phase !== 'all' && feature.phase_id !== state.filters.phase) {
       state.filters.phase = 'all';
       state.expandedCards.add(featureId);
       render();
     }
 
-    // Expand the target card
     if (!state.expandedCards.has(featureId)) {
       state.expandedCards.add(featureId);
       render();
     }
 
-    // Scroll to the card
     const card = document.querySelector(`.feature-card[data-feature-id="${featureId}"]`);
     if (card) {
       card.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1510,7 +2022,14 @@ const ROADMAP_DATA = {{ROADMAP_DATA}};
     }
   }
 
+  // Expose functions that are called from inline onclick attributes (IIFE scope workaround)
+  window.setFeatureStatusGlobal = setFeatureStatus;
+  window.copyClaudePromptGlobal = copyClaudePrompt;
+  window.togglePriorityPillGlobal = togglePriorityPill;
+
   // ── Initial Render ───────────────────────────────────────────
+  // Apply saved status overrides before rendering so cards show correct state on load
+  initStatusOverrides();
   render();
 
 })();

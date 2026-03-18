@@ -105,6 +105,14 @@ body {
   color: var(--text);
 }
 
+/* Header right-side button group */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
 /* Theme toggle button */
 .theme-toggle {
   background: var(--bg-secondary);
@@ -128,7 +136,41 @@ body {
   height: 18px;
 }
 
-/* Type breakdown badges in header */
+/* Sync to Claude button — only shown when there are unsaved status changes */
+.sync-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid #d97706;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s, box-shadow 0.15s;
+  box-shadow: 0 1px 3px rgba(217,119,6,0.3);
+}
+.sync-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(217,119,6,0.4);
+}
+.sync-btn svg {
+  width: 16px;
+  height: 16px;
+}
+.sync-btn .badge {
+  background: rgba(255,255,255,0.3);
+  border-radius: var(--radius-pill);
+  padding: 0 6px;
+  font-size: 11px;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* Type breakdown badges in header — clickable quick filters */
 .type-badges {
   display: flex;
   flex-wrap: wrap;
@@ -233,17 +275,112 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  position: relative;
 }
 .card:hover {
   box-shadow: var(--shadow-md);
   transform: translateY(-1px);
 }
-/* Dismissed cards get muted style */
+/* Dismissed cards get muted style + strikethrough title */
 .card.status-dismissed {
-  opacity: 0.6;
+  opacity: 0.45;
 }
 .card.status-dismissed .card-title {
   text-decoration: line-through;
+}
+/* Accepted cards get a green border glow */
+.card.status-accepted {
+  border-color: var(--color-accepted);
+  box-shadow: inset 0 0 0 1px var(--color-accepted), var(--shadow-sm);
+}
+
+/* ===== Card Action Buttons (thumbs up/down) ===== */
+/* Positioned absolute top-right, hidden by default, shown on hover */
+.card-actions {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.card:hover .card-actions {
+  opacity: 1;
+}
+.card-actions button {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+  padding: 0;
+  color: var(--text-muted);
+}
+.card-actions button svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.card-actions button:hover {
+  transform: scale(1.15);
+}
+.card-actions .btn-accept:hover {
+  background: #d1fae5;
+  border-color: var(--color-accepted);
+  color: #059669;
+}
+.card-actions .btn-dismiss:hover {
+  background: #fee2e2;
+  border-color: #ef4444;
+  color: #dc2626;
+}
+html.dark .card-actions .btn-accept:hover {
+  background: #064e3b;
+  color: #34d399;
+}
+html.dark .card-actions .btn-dismiss:hover {
+  background: #7f1d1d;
+  color: #f87171;
+}
+/* Highlight the active action button; keep both clickable for toggle-off */
+.card.status-accepted .btn-accept {
+  background: #d1fae5;
+  border-color: var(--color-accepted);
+  color: #059669;
+  opacity: 1;
+}
+.card.status-dismissed .btn-dismiss {
+  background: #fee2e2;
+  border-color: #ef4444;
+  color: #dc2626;
+  opacity: 1;
+}
+html.dark .card.status-accepted .btn-accept {
+  background: #064e3b;
+  color: #34d399;
+}
+html.dark .card.status-dismissed .btn-dismiss {
+  background: #7f1d1d;
+  color: #f87171;
+}
+/* Always show action buttons on actioned cards (not just on hover) */
+.card.status-accepted .card-actions,
+.card.status-dismissed .card-actions {
+  opacity: 1;
+}
+/* Created cards (already have a GH issue) — no review actions needed */
+.card.status-created .card-actions {
+  display: none;
 }
 
 /* Card header row: badges */
@@ -307,11 +444,24 @@ body {
   color: var(--text-muted);
 }
 
-/* Card title */
+/* Card title — flex row for optional GH icon prefix */
 .card-title {
   font-size: 15px;
   font-weight: 600;
   line-height: 1.4;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+/* GitHub octicon link shown before the title on created cards */
+.gh-link {
+  color: var(--text-muted);
+  display: inline-flex;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+.gh-link:hover {
+  color: var(--text);
 }
 
 /* Expandable text blocks */
@@ -592,6 +742,29 @@ html.dark .insight-header:hover {
   opacity: 1;
 }
 
+/* ===== Save Toast (bottom-right feedback notification) ===== */
+.save-toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: var(--bg-card);
+  border: 1px solid var(--color-accepted);
+  color: var(--text);
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.3s, transform 0.3s;
+  pointer-events: none;
+  z-index: 100;
+}
+.save-toast.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 640px) {
   .cards-grid {
@@ -623,7 +796,7 @@ html.dark .insight-header:hover {
 </div>
 
 <script>
-// IDEATION_DATA — the orchestrator replaces the placeholder below with the actual JSON object.
+// The orchestrator replaces the next line's placeholder with the actual JSON object.
 const IDEATION_DATA = {{IDEATION_DATA}};
 
 /* ===== Helpers ===== */
@@ -683,6 +856,8 @@ const ICONS = {
   sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>',
   moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
   chevron: '<svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>',
+  github: '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>',
+  clipboard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>',
 };
 
 /* ===== Theme ===== */
@@ -705,6 +880,211 @@ function updateThemeIcon() {
   btn.innerHTML = isDark ? ICONS.sun : ICONS.moon;
 }
 
+/* ===== Status Management =====
+ * Statuses are mutated in-memory on IDEATION_DATA and persisted to localStorage.
+ * On reload, overrides are reconciled: stale ones (already synced, or status=created) are discarded.
+ * The sync button only appears when hasUnsavedChanges is true.
+ */
+const STATUS_STORAGE_KEY = 'ideation-statuses-' + (IDEATION_DATA.id || 'default');
+let hasUnsavedChanges = false;
+
+function initStatusOverrides() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STATUS_STORAGE_KEY) || '{}');
+    const stillNeeded = {};
+    (IDEATION_DATA.ideas || []).forEach(idea => {
+      const override = saved[idea.id];
+      if (!override) return;
+      // If the JSON already reflects this status (or a more advanced one like "created"), the override is stale
+      if (idea.status === override || idea.status === 'created') return;
+      // Still pending in JSON but user already reviewed it — apply override
+      idea.status = override;
+      idea.reviewed_at = idea.reviewed_at || new Date().toISOString();
+      stillNeeded[idea.id] = override;
+    });
+    if (Object.keys(stillNeeded).length > 0) {
+      localStorage.setItem(STATUS_STORAGE_KEY, JSON.stringify(stillNeeded));
+      hasUnsavedChanges = true;
+    } else {
+      localStorage.removeItem(STATUS_STORAGE_KEY);
+      hasUnsavedChanges = false;
+    }
+  } catch {}
+}
+
+function getIdeaStatus(id) {
+  const idea = (IDEATION_DATA.ideas || []).find(i => i.id === id);
+  return idea ? (idea.status || 'pending') : null;
+}
+
+function setIdeaStatus(id, status) {
+  const idea = (IDEATION_DATA.ideas || []).find(i => i.id === id);
+  if (!idea) return;
+  // Never allow changing status on ideas that already have GH issues
+  if (idea.status === 'created') return;
+  // Toggle: clicking the same action again resets to pending
+  idea.status = idea.status === status ? 'pending' : status;
+  idea.reviewed_at = new Date().toISOString();
+  // Persist all non-pending statuses to localStorage
+  const overrides = {};
+  (IDEATION_DATA.ideas || []).forEach(i => {
+    if (i.status && i.status !== 'pending') overrides[i.id] = i.status;
+  });
+  localStorage.setItem(STATUS_STORAGE_KEY, JSON.stringify(overrides));
+  hasUnsavedChanges = true;
+  updateSyncButton();
+  renderCards();
+  showToast(idea.status === 'pending' ? 'Reset to pending' : capitalize(idea.status));
+}
+
+function updateSyncButton() {
+  const ideas = IDEATION_DATA.ideas || [];
+  const acceptedCount = ideas.filter(i => i.status === 'accepted').length;
+  const dismissedCount = ideas.filter(i => i.status === 'dismissed').length;
+  const needsIssueCount = ideas.filter(i => i.status === 'accepted' && !i.gh_issue).length;
+  const reviewedCount = acceptedCount + dismissedCount;
+  const show = hasUnsavedChanges && reviewedCount > 0;
+  const syncBtn = document.getElementById('sync-btn');
+  const badge = document.getElementById('sync-count');
+  if (syncBtn) {
+    syncBtn.style.display = show ? 'inline-flex' : 'none';
+    syncBtn.title = `${acceptedCount} accepted (${needsIssueCount} need GH issues), ${dismissedCount} dismissed — copy prompt to clipboard`;
+  }
+  if (badge) badge.textContent = reviewedCount;
+}
+
+function showToast(msg) {
+  let toast = document.getElementById('save-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'save-toast';
+    toast.className = 'save-toast';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.classList.add('visible');
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.remove('visible'), 2500);
+}
+
+/* ===== Build Claude Prompt =====
+ * Generates a full instructions prompt for Claude Code to:
+ *   1. Update ideation.json statuses
+ *   2. Create GH issues for accepted ideas without existing ones
+ *   3. Update issues-tracker.json
+ *   4. Regenerate report.html
+ */
+function buildClaudePrompt() {
+  const ideas = IDEATION_DATA.ideas || [];
+  const accepted = ideas.filter(i => i.status === 'accepted');
+  const dismissed = ideas.filter(i => i.status === 'dismissed');
+  const needsIssue = accepted.filter(i => !i.gh_issue);
+  const alreadyHasIssue = accepted.filter(i => i.gh_issue);
+  const projectName = IDEATION_DATA.project_name || 'unknown';
+
+  const reportPath = window.location.pathname;
+  const ideationDir = reportPath.replace(/\/report\.html$/, '');
+  const ideationJsonPath = ideationDir + '/ideation.json';
+  const trackerPath = ideationDir + '/issues-tracker.json';
+
+  let prompt = `Update the ideation review for project "${projectName}" and create GitHub issues for accepted ideas.\n\n`;
+  prompt += `Files:\n`;
+  prompt += `- Ideation JSON: ${ideationJsonPath}\n`;
+  prompt += `- Issues tracker: ${trackerPath}\n`;
+  prompt += `- Report: ${ideationDir}/report.html\n\n`;
+  prompt += `Total ideas: ${ideas.length} | Reviewed: ${accepted.length + dismissed.length} | Accepted: ${accepted.length} | Dismissed: ${dismissed.length}\n\n`;
+
+  if (accepted.length > 0) {
+    prompt += `## Accepted Ideas (${accepted.length})\n\n`;
+    accepted.forEach(i => {
+      const hasIssue = i.gh_issue ? ` [already has Issue #${i.gh_issue.number}]` : ' [NEEDS GH ISSUE]';
+      prompt += `- **${i.id}**: "${i.title}" (${i.type}, ${i.estimated_effort || 'unknown'} effort)${hasIssue}\n`;
+    });
+    prompt += `\n`;
+  }
+
+  if (dismissed.length > 0) {
+    prompt += `## Dismissed Ideas (${dismissed.length})\n\n`;
+    dismissed.forEach(i => {
+      const reason = i.dismissed_reason ? ` — reason: "${i.dismissed_reason}"` : '';
+      prompt += `- **${i.id}**: "${i.title}"${reason}\n`;
+    });
+    prompt += `\n`;
+  }
+
+  prompt += `## Instructions\n\n`;
+  prompt += `### Step 1: Update ideation.json\n`;
+  prompt += `1. Read ${ideationJsonPath}\n`;
+  prompt += `2. For each idea listed above, update its "status" to "accepted" or "dismissed" and set "reviewed_at" to current ISO timestamp\n`;
+  prompt += `3. Recalculate summary.by_status counts\n`;
+  prompt += `4. Set updated_at to current ISO timestamp\n`;
+  prompt += `5. Write the updated JSON back\n\n`;
+
+  if (needsIssue.length > 0) {
+    prompt += `### Step 2: Create GitHub Issues (${needsIssue.length} issues)\n\n`;
+    prompt += `For each accepted idea that needs a GH issue, run:\n\n`;
+    prompt += `\`\`\`\n`;
+    prompt += `gh issue create --title "{title}" --body "{body}" --label "{type},ideation-generated"\n`;
+    prompt += `\`\`\`\n\n`;
+    prompt += `Issue body format:\n`;
+    prompt += `\`\`\`markdown\n`;
+    prompt += `## {title}\n\n`;
+    prompt += `{description}\n\n`;
+    prompt += `### Rationale\n`;
+    prompt += `{rationale}\n\n`;
+    prompt += `### Implementation Approach\n`;
+    prompt += `{implementation_approach}\n\n`;
+    prompt += `### Affected Files\n`;
+    prompt += `{list of affected_files as bullet points}\n\n`;
+    prompt += `### Estimated Effort\n`;
+    prompt += `{estimated_effort}\n\n`;
+    prompt += `---\n`;
+    prompt += `*Generated by bvdr-ideation-and-roadmap plugin — Source: {type} ideation — {id}*\n`;
+    prompt += `\`\`\`\n\n`;
+    prompt += `Ideas that need issues:\n`;
+    needsIssue.forEach(i => {
+      prompt += `- ${i.id}: "${i.title}" → type: ${i.type}, effort: ${i.estimated_effort || 'unknown'}\n`;
+    });
+    prompt += `\n`;
+    prompt += `After creating each issue:\n`;
+    prompt += `1. Update the idea's "status" to "created" in ideation.json\n`;
+    prompt += `2. Set "gh_issue": { "number": <issue_number>, "url": "<issue_url>" }\n`;
+    prompt += `3. Append to ${trackerPath} (create if doesn't exist):\n`;
+    prompt += `   { "created_issues": [{ "idea_id": "<id>", "gh_issue_number": <n>, "gh_issue_url": "<url>", "created_at": "<ISO>" }] }\n`;
+    prompt += `4. Check issues-tracker.json before creating — skip if idea_id already exists\n\n`;
+  }
+
+  if (alreadyHasIssue.length > 0) {
+    prompt += `### Already has GH issues (skip these):\n`;
+    alreadyHasIssue.forEach(i => {
+      prompt += `- ${i.id}: Issue #${i.gh_issue.number}\n`;
+    });
+    prompt += `\n`;
+  }
+
+  prompt += `### Step ${needsIssue.length > 0 ? '3' : '2'}: Regenerate report.html\n`;
+  prompt += `Find the ideation-report-template.html from the bvdr-ideation-and-roadmap plugin, replace {{IDEATION_DATA}} with the updated ideation.json content, and write to ${ideationDir}/report.html\n`;
+
+  return prompt;
+}
+
+function copyClaudePrompt() {
+  const prompt = buildClaudePrompt();
+  if (!prompt) return;
+  try {
+    navigator.clipboard.writeText(prompt);
+  } catch {
+    const ta = document.createElement('textarea');
+    ta.value = prompt;
+    ta.style.cssText = 'position:fixed;left:-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+  showToast('Copied to clipboard! Paste in Claude Code.');
+}
+
 /* ===== Filtering & Sorting State ===== */
 let filters = { type: '', effort: '', severity: '', status: '', search: '' };
 let sortBy = 'type';
@@ -723,8 +1103,11 @@ function getFilteredIdeas() {
       (i.rationale || '').toLowerCase().includes(q)
     );
   }
-  /* Sort */
+  /* Sort — dismissed always go to the bottom regardless of sort option */
   ideas = [...ideas].sort((a, b) => {
+    const aDismissed = a.status === 'dismissed' ? 1 : 0;
+    const bDismissed = b.status === 'dismissed' ? 1 : 0;
+    if (aDismissed !== bDismissed) return aDismissed - bDismissed;
     switch (sortBy) {
       case 'type': return (Object.keys(TYPE_COLORS).indexOf(a.type) - Object.keys(TYPE_COLORS).indexOf(b.type)) || a.title.localeCompare(b.title);
       case 'effort': return (EFFORT_ORDER.indexOf(a.estimated_effort) - EFFORT_ORDER.indexOf(b.estimated_effort));
@@ -757,8 +1140,15 @@ function render() {
             <span><span class="count">${data.summary ? (data.summary.total_ideas || data.summary.total || 0) : (data.ideas || []).length}</span> ideas</span>
           </div>
         </div>
-        <button class="theme-toggle" id="theme-btn" title="Toggle dark/light mode" onclick="toggleTheme()"></button>
+        <div class="header-actions">
+          <!-- Sync button only shown when there are unsaved status changes -->
+          <button class="sync-btn" id="sync-btn" title="Copy sync prompt to clipboard" onclick="copyClaudePrompt()" style="display:none">
+            ${ICONS.clipboard} Copy <span class="badge" id="sync-count">0</span>
+          </button>
+          <button class="theme-toggle" id="theme-btn" title="Toggle dark/light mode" onclick="toggleTheme()"></button>
+        </div>
       </div>
+      <!-- Type badges act as quick filter toggles -->
       <div class="type-badges">
         ${Object.entries(data.summary ? data.summary.by_type : {}).map(([type, count]) => `
           <span class="type-badge" data-type="${type}" onclick="toggleTypeBadge('${type}')" style="background:${TYPE_COLORS[type] || '#6b7280'}">${escapeHtml(TYPE_LABELS[type] || capitalize(type))} <span class="badge-count">${count}</span></span>
@@ -768,6 +1158,7 @@ function render() {
 
     <!-- Filter Bar -->
     <div class="filter-bar">
+      <!-- syncBadgeStates() keeps the type badges in sync when dropdown changes -->
       <select id="filter-type" onchange="filters.type=this.value;syncBadgeStates();renderCards()">
         <option value="">All Types</option>
         ${Object.keys(TYPE_LABELS).map(t => `<option value="${t}" ${filters.type === t ? 'selected' : ''}>${TYPE_LABELS[t]}</option>`).join('')}
@@ -812,6 +1203,7 @@ function render() {
   `;
 
   updateThemeIcon();
+  updateSyncButton();
 }
 
 /**
@@ -827,18 +1219,12 @@ function syncBadgeStates() {
 }
 
 function toggleTypeBadge(type) {
-  const isActive = filters.type === type;
-  // Toggle: click active badge to clear, click inactive to filter
-  filters.type = isActive ? '' : type;
-  // Sync the dropdown
+  // Toggle: click active badge to clear filter, click inactive badge to filter by it
+  filters.type = filters.type === type ? '' : type;
+  // Keep the dropdown in sync with badge state
   const sel = document.getElementById('filter-type');
   if (sel) sel.value = filters.type;
-  // Update badge visual states
-  document.querySelectorAll('.type-badge').forEach(badge => {
-    const badgeType = badge.getAttribute('data-type');
-    badge.classList.toggle('active', badgeType === filters.type);
-    badge.classList.toggle('dimmed', filters.type && badgeType !== filters.type);
-  });
+  syncBadgeStates();
   renderCards();
 }
 
@@ -859,16 +1245,28 @@ function renderCards() {
 function renderCard(idea) {
   const typeColor = TYPE_COLORS[idea.type] || '#6b7280';
   const typeLabel = TYPE_LABELS[idea.type] || capitalize(idea.type);
+  // Use the in-memory status (which may have been overridden by localStorage on init)
+  const ideaStatus = getIdeaStatus(idea.id) || idea.status || 'pending';
 
-  /* Status badge */
+  /* Status badge — handles all three created sub-cases:
+   *   1. gh_issue with url → clickable link
+   *   2. gh_issue with number only → non-link badge
+   *   3. no gh_issue → plain "Created" badge
+   */
   let statusBadge = '';
-  if (idea.status === 'accepted') {
+  if (ideaStatus === 'accepted') {
     statusBadge = '<span class="pill pill-status-accepted">Accepted</span>';
-  } else if (idea.status === 'dismissed') {
+  } else if (ideaStatus === 'dismissed') {
     const tip = idea.dismissed_reason ? ` data-tooltip="${escapeHtml(idea.dismissed_reason)}"` : '';
     statusBadge = `<span class="pill pill-status-dismissed"${tip}>Dismissed</span>`;
-  } else if (idea.status === 'created' && idea.gh_issue) {
-    statusBadge = `<span class="pill pill-status-created"><a href="${escapeHtml(idea.gh_issue.url || '#')}" target="_blank" rel="noopener">Issue #${idea.gh_issue.number}</a></span>`;
+  } else if (ideaStatus === 'created') {
+    if (idea.gh_issue && idea.gh_issue.url) {
+      statusBadge = `<span class="pill pill-status-created"><a href="${escapeHtml(idea.gh_issue.url)}" target="_blank" rel="noopener">Issue #${idea.gh_issue.number}</a></span>`;
+    } else if (idea.gh_issue && idea.gh_issue.number) {
+      statusBadge = `<span class="pill pill-status-created">Issue #${idea.gh_issue.number}</span>`;
+    } else {
+      statusBadge = '<span class="pill pill-status-created">Created</span>';
+    }
   }
 
   /* Severity indicator */
@@ -883,13 +1281,30 @@ function renderCard(idea) {
     categoryHtml = `<span class="pill pill-effort">${escapeHtml(capitalize(idea.category))}</span>`;
   }
 
+  /* GitHub icon before title for created ideas that have an issue URL */
+  let ghLink = '';
+  if (ideaStatus === 'created' && idea.gh_issue) {
+    const href = idea.gh_issue.url ? escapeHtml(idea.gh_issue.url) : '#';
+    const issueNum = idea.gh_issue.number || '';
+    ghLink = `<a href="${href}" target="_blank" rel="noopener" class="gh-link" title="View Issue${issueNum ? ' #' + issueNum : ''} on GitHub">${ICONS.github}</a>`;
+  }
+
   /* Collapsible sections */
   const affectedFiles = (idea.affected_files || []);
   const relatedIssues = (idea.related_issues || []);
   const hasImpl = idea.implementation_approach;
 
   return `
-    <div class="card status-${idea.status || 'pending'}" style="--card-type-color:${typeColor}">
+    <div class="card status-${ideaStatus}" style="--card-type-color:${typeColor}" data-idea-id="${idea.id}">
+      <!-- Thumbs up/down action buttons — hidden on created cards, always visible on accepted/dismissed -->
+      <div class="card-actions">
+        <button class="btn-accept" onclick="event.stopPropagation();setIdeaStatus('${idea.id}','accepted')" title="Accept">
+          <svg viewBox="0 0 24 24"><path d="M7 10v12"/><path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"/></svg>
+        </button>
+        <button class="btn-dismiss" onclick="event.stopPropagation();setIdeaStatus('${idea.id}','dismissed')" title="Dismiss">
+          <svg viewBox="0 0 24 24"><path d="M17 14V2"/><path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z"/></svg>
+        </button>
+      </div>
       <div class="card-badges">
         <span class="pill pill-type" style="background:${typeColor}">${escapeHtml(typeLabel)}</span>
         <span class="pill pill-effort">${capitalize(idea.estimated_effort || 'unknown')}</span>
@@ -897,7 +1312,8 @@ function renderCard(idea) {
         ${severityHtml}
         ${statusBadge}
       </div>
-      <div class="card-title">${escapeHtml(idea.title)}</div>
+      <!-- GH icon before title for created ideas -->
+      <div class="card-title">${ghLink}${escapeHtml(idea.title)}</div>
       ${idea.description ? `
       <div class="expandable">
         <div class="expandable-label">Description</div>
@@ -1065,6 +1481,8 @@ function toggleInsight(header) {
 }
 
 /* ===== Init ===== */
+// Apply saved status overrides before rendering so cards show correct state on load
+initStatusOverrides();
 initTheme();
 render();
 </script>
