@@ -143,6 +143,21 @@ body {
   font-size: 12px;
   font-weight: 600;
   color: #fff;
+  cursor: pointer;
+  transition: opacity 0.2s, box-shadow 0.2s, transform 0.15s;
+  user-select: none;
+}
+.type-badge:hover {
+  opacity: 0.85;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+.type-badge.active {
+  box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px currentColor;
+  transform: translateY(-1px);
+}
+.type-badge.dimmed {
+  opacity: 0.4;
 }
 .type-badge .badge-count {
   background: rgba(255,255,255,0.25);
@@ -608,10 +623,7 @@ html.dark .insight-header:hover {
 </div>
 
 <script>
-/**
- * IDEATION_DATA placeholder — the orchestrator replaces {{IDEATION_DATA}} with the actual JSON object
- * at report generation time. This is the single injection point for all report data.
- */
+// IDEATION_DATA — the orchestrator replaces the placeholder below with the actual JSON object.
 const IDEATION_DATA = {{IDEATION_DATA}};
 
 /* ===== Helpers ===== */
@@ -742,21 +754,21 @@ function render() {
           <h1>${escapeHtml(data.project_name || 'Ideation Report')}</h1>
           <div class="header-meta">
             <span>${formatDate(data.generated_at)}</span>
-            <span><span class="count">${data.summary ? data.summary.total_ideas : (data.ideas || []).length}</span> ideas</span>
+            <span><span class="count">${data.summary ? (data.summary.total_ideas || data.summary.total || 0) : (data.ideas || []).length}</span> ideas</span>
           </div>
         </div>
         <button class="theme-toggle" id="theme-btn" title="Toggle dark/light mode" onclick="toggleTheme()"></button>
       </div>
       <div class="type-badges">
         ${Object.entries(data.summary ? data.summary.by_type : {}).map(([type, count]) => `
-          <span class="type-badge" style="background:${TYPE_COLORS[type] || '#6b7280'}">${escapeHtml(TYPE_LABELS[type] || capitalize(type))} <span class="badge-count">${count}</span></span>
+          <span class="type-badge" data-type="${type}" onclick="toggleTypeBadge('${type}')" style="background:${TYPE_COLORS[type] || '#6b7280'}">${escapeHtml(TYPE_LABELS[type] || capitalize(type))} <span class="badge-count">${count}</span></span>
         `).join('')}
       </div>
     </div>
 
     <!-- Filter Bar -->
     <div class="filter-bar">
-      <select id="filter-type" onchange="filters.type=this.value;renderCards()">
+      <select id="filter-type" onchange="filters.type=this.value;syncBadgeStates();renderCards()">
         <option value="">All Types</option>
         ${Object.keys(TYPE_LABELS).map(t => `<option value="${t}" ${filters.type === t ? 'selected' : ''}>${TYPE_LABELS[t]}</option>`).join('')}
       </select>
@@ -806,6 +818,30 @@ function render() {
  * Partial re-render: only update the cards grid and count when filters change.
  * Avoids re-rendering the entire page and losing scroll position / collapsed state.
  */
+function syncBadgeStates() {
+  document.querySelectorAll('.type-badge').forEach(badge => {
+    const badgeType = badge.getAttribute('data-type');
+    badge.classList.toggle('active', badgeType === filters.type);
+    badge.classList.toggle('dimmed', filters.type && badgeType !== filters.type);
+  });
+}
+
+function toggleTypeBadge(type) {
+  const isActive = filters.type === type;
+  // Toggle: click active badge to clear, click inactive to filter
+  filters.type = isActive ? '' : type;
+  // Sync the dropdown
+  const sel = document.getElementById('filter-type');
+  if (sel) sel.value = filters.type;
+  // Update badge visual states
+  document.querySelectorAll('.type-badge').forEach(badge => {
+    const badgeType = badge.getAttribute('data-type');
+    badge.classList.toggle('active', badgeType === filters.type);
+    badge.classList.toggle('dimmed', filters.type && badgeType !== filters.type);
+  });
+  renderCards();
+}
+
 function renderCards() {
   const ideas = getFilteredIdeas();
   const grid = $('#cards-grid');
