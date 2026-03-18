@@ -29,6 +29,12 @@
       "source": "./plugins/bvdr-nightshift",
       "description": "Autonomous deep codebase audit with 2-level swarm. 9 Level 1 audit domains + 6 Level 2 enhancement agents. Stop/resume, dashboard report, trend tracking, Slack/Notion integration.",
       "version": "2.1.0"
+    },
+    {
+      "name": "bvdr-ideation-and-roadmap",
+      "source": "./plugins/bvdr-ideation-and-roadmap",
+      "description": "Deep AI-powered project ideation and roadmap generation with parallel subagents, competitive analysis, and interactive HTML reports",
+      "version": "1.0.0"
     }
   ]
 }
