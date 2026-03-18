@@ -56,6 +56,58 @@ Respond to Claude Code from anywhere on your Mac via native macOS dialogs — no
 
 ---
 
+### Autonomous Agent Plugins
+
+#### [Ideation & Roadmap](plugins/bvdr-ideation-and-roadmap)
+
+Deep AI-powered project analysis with parallel subagents, competitive research, and interactive HTML reports.
+
+- **`/ideation`** — Dispatches 6 parallel agents analyzing code improvements, code quality, documentation, security, performance, and UI/UX
+- **`/roadmap`** — Generates strategic feature roadmaps with MoSCoW prioritization across phases
+- **Deep analysis foundation** — 500 commits, 1 year of merged PRs, open issues, web competitive research, Claude memory/beads context
+- **Interactive HTML reports** — Clickable filter badges, thumbs up/down review, notes/comments overlay, GitHub issue links, one-click Copy-to-Claude sync
+- **Review workflow** — Accept/dismiss ideas in the browser, add notes, then sync to Claude Code which updates JSON + creates GH issues
+- **GitHub integration** — Auto-creates issues for accepted ideas with formatted bodies, labels, and issue tracker
+
+```bash
+/plugin install bvdr-ideation-and-roadmap@bvdr
+```
+
+**Commands:**
+
+| Command | Description |
+|---------|-------------|
+| `/ideation` | Run all 6 ideation types |
+| `/ideation --only sec,perf` | Run specific types (aliases: ci, cq, doc, sec, perf, ux) |
+| `/ideation accept id1 id2` | Mark ideas as accepted |
+| `/ideation dismiss id` | Mark idea as dismissed |
+| `/ideation create-issues` | Create GH issues for accepted ideas |
+| `/ideation status` | Show review summary |
+| `/roadmap` | Generate full roadmap |
+| `/roadmap --skip-discovery` | Reuse existing discovery, regenerate features |
+| `/roadmap accept id1 id2` | Mark features as accepted |
+| `/roadmap create-issues` | Create GH issues for accepted features |
+
+**Platform:** macOS, Linux | **Requires:** `gh` CLI (optional, for GitHub integration)
+
+---
+
+#### [Night Shift](plugins/bvdr-nightshift)
+
+Autonomous deep codebase audit with a 2-level agent swarm — 9 Level 1 audit domains + 6 Level 2 enhancement agents.
+
+- Sequential Opus agents with state persistence for stop/resume
+- Dashboard report with executive summary and trend tracking
+- Slack summary and Notion task integration
+
+```bash
+/plugin install bvdr-nightshift@bvdr
+```
+
+**Platform:** macOS, Linux
+
+---
+
 ### Skills Plugin
 
 #### [bvdr](plugins/bvdr)
@@ -132,24 +184,29 @@ tail -f ~/.claude/hooks/smart-permissions.log
 
 ```
 plugins/
+├── bvdr-ideation-and-roadmap/     # Deep project analysis with parallel subagents
+│   ├── .claude-plugin/plugin.json
+│   ├── commands/                  # Orchestrator skills
+│   │   ├── ideation.md              # /ideation — 6 parallel analysis agents
+│   │   └── roadmap.md               # /roadmap — discovery + feature generation
+│   ├── agents/                    # Subagent prompt files
+│   │   ├── context/                 # Deep analysis (git, codebase, competitive)
+│   │   ├── ideation/                # 6 ideation agents (adapted from Auto-Claude)
+│   │   └── roadmap/                 # Discovery + features agents
+│   └── assets/                    # Interactive HTML report templates
+├── bvdr-nightshift/               # Autonomous codebase audit swarm
+│   ├── .claude-plugin/plugin.json
+│   ├── commands/night-shift.md
+│   └── domains/                   # 15 audit domain agent prompts
 ├── bvdr-smart-permissions/        # AI-powered auto-allow/deny hook
-│   ├── hooks/                     # Bash scripts for PreToolUse + PermissionRequest
-│   ├── permission-policy.md       # Customizable AI evaluation rules
+│   ├── hooks/
+│   ├── permission-policy.md
 │   └── manifest.json
 ├── bvdr-interactive-notifications/ # Native macOS dialogs
-│   ├── hooks/                     # Bash scripts for permissions, questions, idle, stop
+│   ├── hooks/
 │   └── manifest.json
 └── bvdr/                          # Skills collection
-    ├── commands/                  # Skill markdown files
-    │   ├── using-umami.md           # Umami Analytics hub router
-    │   ├── umami-setup.md           # Umami setup & configuration
-    │   ├── umami-track.md           # Umami tracking implementation
-    │   ├── umami-reports.md         # Umami report creation & execution
-    │   ├── umami-query.md           # Umami data querying
-    │   ├── enable-voice-alerts.md
-    │   ├── setup-statusline.md
-    │   ├── setup-slack-notifications.md
-    │   └── send-slack-notification.md
+    ├── commands/                  # Umami, Slack, voice alerts, statusline
     └── .claude-plugin/
 ```
 
