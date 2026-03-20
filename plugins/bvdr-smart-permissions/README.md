@@ -25,15 +25,69 @@ Deterministic bash regex rules that run on every tool call. No LLM involved.
 - **Always-deny**: Dangerous operations (rm -rf /, sudo, curl|bash, etc.)
 - **Passthrough**: Anything ambiguous produces no output, falling through to Layer 2
 
-### Layer 2 — PermissionRequest (~1-2s with API key, ~8-10s with CLI)
+### Layer 2 — PermissionRequest (AI evaluation)
 
-AI fallback using Claude Haiku. Only fires when Layer 1 didn't decide and a permission dialog would appear anyway.
+AI fallback that evaluates ambiguous tool calls against `permission-policy.md`. Only fires when Layer 1 didn't decide and a permission dialog would appear anyway.
 
-- **Fast path**: Direct Anthropic API call via `curl` when `ANTHROPIC_API_KEY` is set (~1-2s)
-- **Slow path**: Falls back to `claude` CLI when no API key is available (~8-10s)
-- Loads `permission-policy.md` as the evaluation ruleset
-- Fail-open: if anything breaks (missing deps, timeout, parse error), shows normal dialog
-- Recursion-safe: guards against infinite loops via env checks
+**Supported providers:**
+
+| Provider | How | Speed | Requirements |
+|----------|-----|-------|-------------|
+| `claude` (default) | Anthropic API via `curl`, falls back to `claude` CLI | ~1-2s (API) / ~8-10s (CLI) | `ANTHROPIC_API_KEY` or `claude` CLI |
+| `ollama` | Local inference via `ollama run` | Varies by model | `ollama` CLI running locally |
+| `gemini` | Gemini CLI, falls back to REST API | ~2-5s (CLI) / ~1-3s (API) | `gemini` CLI or `GEMINI_API_KEY` |
+| `auto` | Tries claude API → gemini CLI → gemini API → ollama → claude CLI | Best available | Any one of the above |
+
+Fail-open: if anything breaks (missing deps, timeout, parse error), shows normal dialog.
+
+## Provider Configuration
+
+Configuration is resolved in order: **environment variable → `~/.claude/settings.json` env section → default**. Set values in whichever place suits your workflow:
+
+```jsonc
+// ~/.claude/settings.json
+{
+  "env": {
+    "SMART_PERMISSIONS_PROVIDER": "gemini",          // claude (default), ollama, gemini, or auto
+    "SMART_PERMISSIONS_CLAUDE_MODEL": "claude-haiku-4-5-20251001",  // optional
+    "SMART_PERMISSIONS_OLLAMA_MODEL": "qwen2.5-coder:7b",          // optional
+    "SMART_PERMISSIONS_GEMINI_MODEL": "gemini-2.5-flash",          // optional
+    "ANTHROPIC_API_KEY": "sk-ant-...",               // for claude API path
+    "GEMINI_API_KEY": "your_key_here"                // for gemini API path
+  }
+}
+```
+
+Only set the variables you need — defaults work out of the box if the provider is available.
+
+### Claude (default)
+
+No extra config needed if `ANTHROPIC_API_KEY` is set (fast path) or `claude` CLI is installed (slow path).
+
+### Ollama
+
+Requires [Ollama](https://ollama.ai) running locally with a model pulled:
+
+```bash
+ollama pull qwen2.5-coder:7b
+```
+
+**Model size matters:** The permission policy requires the model to parse a structured document and make nuanced allow/deny decisions. Small models (1.5B) may ignore policy rules and produce incorrect results. We recommend 7B+ parameters for reliable evaluation. Larger models like `llama3.1:8b` or `qwen2.5-coder:7b` work well.
+
+### Gemini
+
+Tries the [Gemini CLI](https://github.com/google-gemini/gemini-cli) first (`gemini -p`), falls back to REST API if the CLI isn't installed.
+
+**CLI path** — install the Gemini CLI:
+```bash
+npm install -g @google/gemini-cli
+```
+
+**API path** — set `GEMINI_API_KEY` in settings.json. Get a free key from [Google AI Studio](https://aistudio.google.com/apikey).
+
+### Auto mode
+
+Tries providers in order until one succeeds: Claude API → Gemini CLI → Gemini API → Ollama → Claude CLI. Useful if you have multiple providers available and want automatic failover.
 
 ## What Gets Auto-Allowed (Layer 1)
 
@@ -65,26 +119,15 @@ AI fallback using Claude Haiku. Only fires when Layer 1 didn't decide and a perm
 - `networksetup`, `iptables`, `ufw`
 - Modifying `~/.ssh/`, `~/.gnupg/`
 
-## Speed Up Layer 2 with API Key
-
-By default, Layer 2 uses the `claude` CLI which spawns a full Node.js runtime (~8-10s per evaluation). Set your Anthropic API key to use the direct API path instead (~1-2s):
-
-```bash
-# Add to your ~/.zshrc or ~/.bashrc
-export ANTHROPIC_API_KEY="sk-ant-..."
-```
-
-Then restart your shell (or `source ~/.zshrc`) so the variable is available to hooks. The plugin detects the key automatically — no other configuration needed. If the key is missing or invalid, it falls back to the `claude` CLI.
-
 ## Customization
 
 Edit `permission-policy.md` to adjust the AI evaluation rules for Layer 2. This file defines what the LLM considers GREEN (allow) and RED (deny) when evaluating ambiguous commands.
 
 ## Debug Logging
 
-Layer 1 logging (high frequency — gated behind env var):
-```bash
-export SMART_PERMISSIONS_DEBUG=1
+Layer 1 logging (high frequency — add to `env` in `~/.claude/settings.json`):
+```jsonc
+{ "env": { "SMART_PERMISSIONS_DEBUG": "1" } }
 ```
 
 Layer 2 logging (low frequency — always on):
@@ -99,11 +142,20 @@ Composes with `interactive-notifications`: smart-permissions runs first. If it d
 ## Requirements
 
 - `jq` for JSON parsing (required for both layers)
-- Layer 2 needs one of:
-  - `ANTHROPIC_API_KEY` env var (fast path — direct API, ~1-2s)
-  - `claude` CLI (slow path — full Node.js runtime, ~8-10s)
+- Layer 2 needs at least one provider:
+  - `ANTHROPIC_API_KEY` env var (Claude API — fast, ~1-2s)
+  - `claude` CLI installed (Claude CLI — slower, ~8-10s)
+  - `gemini` CLI installed (Gemini CLI — ~2-5s)
+  - `GEMINI_API_KEY` env var (Gemini API — fast, ~1-3s)
+  - `ollama` CLI with a model pulled (local inference)
 
 ## Changelog
+
+### v2.0.0
+- Multi-provider support for Layer 2: Claude (API + CLI), Gemini (CLI + API), Ollama, or auto-failover
+- Gemini provider tries `gemini` CLI first, falls back to REST API
+- New env vars: `SMART_PERMISSIONS_PROVIDER`, `SMART_PERMISSIONS_CLAUDE_MODEL`, `SMART_PERMISSIONS_OLLAMA_MODEL`, `SMART_PERMISSIONS_GEMINI_MODEL`
+- Default behavior unchanged (Claude provider, same as before)
 
 ### v1.5.0
 - Direct Anthropic API call via `curl` when `ANTHROPIC_API_KEY` is set — ~5x faster than CLI path (~1-2s vs ~8-10s)
