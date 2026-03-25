@@ -1,0 +1,657 @@
+---
+description: Run AI-powered marketing audit across 4 domains (SEO & technical, content strategy, growth tactics, brand positioning) with live URL analysis, analytics integration, competitive marketing research, and interactive HTML reports. Supports filtering, review workflow, and GitHub issue creation.
+---
+
+# Marketing Ideation Orchestrator
+
+You are the orchestrator for the Marketing Ideation system. You run autonomously and handle all subcommands. Read this entire file before taking any action.
+
+---
+
+## Step 0: Parse Arguments
+
+Read the skill args string and determine the subcommand and flags.
+
+**Subcommand detection** (first non-flag token):
+
+| Args | Subcommand |
+|------|-----------|
+| (empty or no non-flag tokens) | `run` |
+| `help` | `help` |
+| `accept <id> [<id>...]` | `accept` |
+| `dismiss <id> [--reason "..."]` | `dismiss` |
+| `status` | `status` |
+| `create-issues` | `create-issues` |
+| `create-issue <id>` | `create-issue` |
+
+**Flag detection** (can appear alongside `run`):
+
+- `--only type1,type2` → set `FILTER_TYPES` (parse comma-separated list, resolve aliases — see alias table below)
+- `--refresh` → set `FORCE_REFRESH = true`
+- `--no-open` → set `NO_OPEN = true`
+- `--skip-live` → set `SKIP_LIVE = true` — this skips BOTH the `marketing-landscape` AND `live-analysis` agents entirely
+
+**Alias table** for `--only`:
+
+| Alias | Full slug |
+|-------|-----------|
+| `seo` | `seo-technical` |
+| `content` | `content-strategy` |
+| `growth` | `growth-tactics` |
+| `brand` | `brand-positioning` |
+
+If the value already contains a dash (e.g., `seo-technical`) treat it as a full slug directly.
+
+Once you know the subcommand, jump to that section below.
+
+---
+
+## Subcommand: `help`
+
+Print this exact text and stop — do not run any other phase:
+
+```
+MARKETING IDEATION - AI-powered marketing audit and opportunity analysis
+
+USAGE:
+  /ideation-marketing                              Run all 4 marketing analysis types
+  /ideation-marketing --only type1,type2           Run specific types (see below)
+  /ideation-marketing --refresh                    Force re-run deep analysis
+  /ideation-marketing --no-open                    Don't auto-open HTML report
+  /ideation-marketing --skip-live                  Skip live URL & marketing landscape analysis
+  /ideation-marketing help                         Show this help
+
+REVIEW:
+  /ideation-marketing accept <id> [<id>...]        Mark ideas as accepted
+  /ideation-marketing dismiss <id> [--reason ""]   Mark idea as dismissed
+  /ideation-marketing status                       Show review summary
+
+GITHUB:
+  /ideation-marketing create-issues                Create GH issues for all accepted
+  /ideation-marketing create-issue <id>            Create GH issue for specific idea
+
+MARKETING TYPES (use with --only, comma-separated):
+  seo-technical       Meta tags, Open Graph, structured data, sitemap, crawlability
+  content-strategy    Blog topics, tutorials, case studies, content calendar
+  growth-tactics      Onboarding, referrals, community, launch strategies
+  brand-positioning   Messaging, differentiation, value prop, audience
+
+  Short aliases: seo, content, growth, brand
+  Example: /ideation-marketing --only seo,content
+
+OUTPUT:
+  .claude/marketing-ideation/marketing-ideation-N/report.html   Interactive HTML report (N auto-increments)
+  .claude/marketing-ideation/marketing-ideation-N/marketing-ideation.json   Machine-readable results
+  .claude/marketing-ideation/deep-analysis.json   Cached marketing analysis (shared across runs)
+```
+
+---
+
+## Subcommand: `run` (default)
+
+### Phase 0: Setup
+
+**Detect project root:**
+```bash
+git rev-parse --show-toplevel 2>/dev/null || pwd
+```
+Store as `PROJECT_ROOT`.
+
+**Detect project name:**
+```bash
+basename "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+```
+Store as `PROJECT_NAME`.
+
+**Set base output directory:**
+```
+BASE_DIR = {PROJECT_ROOT}/.claude/marketing-ideation
+```
+
+**Create base directory:**
+```bash
+mkdir -p "{BASE_DIR}"
+```
+
+**Compute run directory with auto-increment:**
+
+Find the next available `marketing-ideation-N` folder inside `{BASE_DIR}`:
+
+```bash
+# Find highest existing marketing-ideation-N number
+ls -d {BASE_DIR}/marketing-ideation-* 2>/dev/null | sed 's/.*marketing-ideation-//' | sort -n | tail -1
+```
+
+If no folders exist, set `RUN_NUMBER = 1`. Otherwise, set `RUN_NUMBER = <highest> + 1`.
+
+```
+RUN_DIR = {BASE_DIR}/marketing-ideation-{RUN_NUMBER}
+```
+
+Create the run directory:
+```bash
+mkdir -p "{RUN_DIR}"
+```
+
+**Set OUTPUT_DIR:** For backward compatibility with agent prompts and file paths, set:
+```
+OUTPUT_DIR = {RUN_DIR}
+```
+
+All agent outputs, `marketing-ideation.json`, and `report.html` go into `{RUN_DIR}`. The `deep-analysis.json` cache stays in `{BASE_DIR}` so it can be reused across runs.
+
+**Write `.gitignore`** to `{OUTPUT_DIR}/.gitignore` if it does not already exist:
+```
+# Generated by bvdr-ideation-and-roadmap plugin
+*
+!.gitignore
+!Readme.txt
+```
+
+**Write `Readme.txt`** to `{OUTPUT_DIR}/Readme.txt` if it does not already exist:
+```
+This folder contains marketing analysis output generated by the
+bvdr-ideation-and-roadmap Claude Code plugin
+(https://github.com/bvdr/claude-plugins).
+
+These files are generated artifacts and are git-ignored by default.
+To regenerate, run /ideation-marketing in Claude Code.
+```
+
+**Check deep-analysis cache:**
+
+Look for `{BASE_DIR}/deep-analysis.json` (note: deep-analysis lives in the base dir, not the run dir). Use it (skip Phase 1) if ALL of the following are true:
+1. File exists and contains valid JSON
+2. `schema_version` field equals `"1.0"`
+3. `created_at` field is less than 24 hours ago (compare to current time via `date -u +%s`)
+4. `FORCE_REFRESH` flag is NOT set
+
+If the cache is valid, log: `"Using cached deep analysis from {created_at}"` and skip to Phase 2.
+
+---
+
+### Phase 1: Deep Analysis (Marketing Context)
+
+**IMPORTANT:** Deep analysis files (`project-understanding.json`, `marketing-landscape.json`, `live-analysis.json`, `deep-analysis.json`) are written to `{BASE_DIR}` (not `{RUN_DIR}`), so they can be cached and reused across runs. When replacing `{OUTPUT_DIR}` in context agent prompts, use `{BASE_DIR}`.
+
+Find the plugin's agent files. Use Glob to locate:
+```
+Glob("**/bvdr-ideation-and-roadmap/agents/marketing-context/project-understanding.md")
+```
+
+Take the path of the found file and derive the agents context directory from it. The other agent files are in the same directory.
+
+**Dispatch 3 context agents sequentially** (each must complete before the next starts, because Agent 2 reads Agent 1's output for project context, and Agent 3 reads Agent 1's output for URL discovery):
+
+#### Agent 1: Project Understanding
+
+Read `agents/marketing-context/project-understanding.md`. Replace:
+- `{OUTPUT_DIR}` → absolute path to `{BASE_DIR}` (deep analysis cache goes in base dir)
+- `{PROJECT_ROOT}` → absolute path to `PROJECT_ROOT`
+
+Dispatch with Agent tool:
+- `subagent_type`: `"general-purpose"`
+- `run_in_background`: `false`
+- `description`: `"Marketing context: project understanding"`
+- `prompt`: the filled-in file contents
+
+#### Agent 2: Marketing Landscape
+
+**Skip if `SKIP_LIVE` is set** — this agent requires web searches.
+
+Read `agents/marketing-context/marketing-landscape.md`. Replace `{OUTPUT_DIR}` with `{BASE_DIR}` and `{PROJECT_ROOT}`.
+
+Dispatch with Agent tool:
+- `subagent_type`: `"general-purpose"`
+- `run_in_background`: `false`
+- `description`: `"Marketing context: marketing landscape"`
+- `prompt`: the filled-in file contents
+
+#### Agent 3: Live Analysis
+
+**Skip if `SKIP_LIVE` is set.**
+
+Read `agents/marketing-context/live-analysis.md`. Replace `{OUTPUT_DIR}` with `{BASE_DIR}` and `{PROJECT_ROOT}`.
+
+Dispatch with Agent tool:
+- `subagent_type`: `"general-purpose"`
+- `run_in_background`: `false`
+- `description`: `"Marketing context: live analysis"`
+- `prompt`: the filled-in file contents
+
+#### Merge outputs
+
+After all agents complete:
+
+1. Read `{BASE_DIR}/project-understanding.json`
+2. Read `{BASE_DIR}/marketing-landscape.json` (if not skipped)
+3. Read `{BASE_DIR}/live-analysis.json` (if not skipped)
+
+If any file is missing or contains invalid JSON, continue with an empty object for that source and log a warning (e.g., `"Warning: marketing-landscape.json missing or invalid — skipping"`).
+
+Merge into a single `deep-analysis.json` object:
+
+```json
+{
+  "schema_version": "1.0",
+  "project_name": "<from project-understanding.json>",
+  "project_type": "<from project-understanding.json>",
+  "project_summary": "<from project-understanding.json>",
+  "tech_stack": "<from project-understanding.json>",
+  "target_audience": "<from project-understanding.json>",
+  "public_assets": "<from project-understanding.json>",
+  "recent_highlights": "<from project-understanding.json>",
+  "github_metrics": "<from project-understanding.json>",
+  "open_issues": "<from project-understanding.json>",
+  "direction": "<from project-understanding.json>",
+  "competitors": "<from marketing-landscape.json>",
+  "market_gaps": "<from marketing-landscape.json>",
+  "keyword_opportunities": "<from marketing-landscape.json>",
+  "content_patterns": "<from marketing-landscape.json>",
+  "live_url": "<from live-analysis.json>",
+  "seo_signals": "<from live-analysis.json>",
+  "analytics_data": "<from live-analysis.json>",
+  "social_presence": "<from live-analysis.json>",
+  "community_mentions": "<from live-analysis.json>",
+  "created_at": "<current ISO 8601 UTC timestamp via `date -u +\"%Y-%m-%dT%H:%M:%SZ\"`>"
+}
+```
+
+If a source was skipped (`SKIP_LIVE`), those fields (`competitors`, `market_gaps`, `keyword_opportunities`, `content_patterns`, `live_url`, `seo_signals`, `analytics_data`, `social_presence`, `community_mentions`) are set to `null`.
+
+Write to `{BASE_DIR}/deep-analysis.tmp.json` first. Validate:
+```bash
+python3 -c "import json, sys; json.load(open('{BASE_DIR}/deep-analysis.tmp.json')); print('valid')"
+```
+
+If valid, rename:
+```bash
+mv "{BASE_DIR}/deep-analysis.tmp.json" "{BASE_DIR}/deep-analysis.json"
+```
+
+---
+
+### Phase 2: Marketing Ideation (4 parallel agents)
+
+**Determine types to run:**
+- If `FILTER_TYPES` is set, use that list
+- Otherwise, use all 4: `seo-technical`, `content-strategy`, `growth-tactics`, `brand-positioning`
+
+**For each type**, find the agent prompt file:
+```
+Glob("**/bvdr-ideation-and-roadmap/agents/marketing/{type}.md")
+```
+
+Read the file. Replace these placeholders:
+- `{DEEP_ANALYSIS_PATH}` → absolute path to `{BASE_DIR}/deep-analysis.json` (deep analysis is in base dir)
+- `{OUTPUT_DIR}` → absolute path to `{RUN_DIR}` (ideation outputs go in the run dir)
+- `{PROJECT_ROOT}` → absolute path to `PROJECT_ROOT`
+
+**Dispatch ALL marketing agents in parallel** — in a SINGLE message, issue multiple Agent tool calls each with `run_in_background: true`:
+
+```
+Agent(prompt="<seo-technical prompt>", run_in_background=true, description="Marketing: seo-technical")
+Agent(prompt="<content-strategy prompt>", run_in_background=true, description="Marketing: content-strategy")
+Agent(prompt="<growth-tactics prompt>", run_in_background=true, description="Marketing: growth-tactics")
+Agent(prompt="<brand-positioning prompt>", run_in_background=true, description="Marketing: brand-positioning")
+```
+
+Only dispatch agents for the types in scope. Wait for all to complete before proceeding to Phase 3.
+
+If an agent file is not found for a type, skip that type and log a warning.
+
+---
+
+### Phase 3: Merge & Report
+
+#### 3.1 — Collect raw ideas
+
+Read each type's output file from `{OUTPUT_DIR}`:
+
+| Type | File |
+|------|------|
+| `seo-technical` | `seo_technical_ideas.json` |
+| `content-strategy` | `content_strategy_ideas.json` |
+| `growth-tactics` | `growth_tactics_ideas.json` |
+| `brand-positioning` | `brand_positioning_ideas.json` |
+
+For each file, extract the ideas array from inside it (the array is under the type's key, e.g., `seo_technical`, `content_strategy`, etc.). If a file is missing or unparseable, log a warning and skip.
+
+Flatten all ideas into a single array. Each idea already has an `id` field — preserve it.
+
+#### 3.1b — Normalize idea fields
+
+Different marketing agents may use slightly different field names (camelCase vs snake_case) or omit fields. Before merging, normalize every idea:
+
+1. **`estimated_effort`**: If missing, check for `estimatedEffort` (camelCase). If still missing, default to `"small"`.
+2. **`affected_files`**: If missing, check for `affectedFiles` or `affected_components` or `affectedAreas`. Normalize to `affected_files` (snake_case array). For strategy ideas with no files, default to `[]`.
+3. **`type`**: Normalize dashes to underscores for JS compatibility in the HTML report: `"seo-technical"` → `"seo_technical"`, `"content-strategy"` → `"content_strategy"`, `"growth-tactics"` → `"growth_tactics"`, `"brand-positioning"` → `"brand_positioning"`. Keep the original dash-format in `marketing-ideation.json` `summary.by_type` keys but use underscore-format when injecting into the HTML template.
+4. **`status`**: If missing, set to `"pending"`.
+5. **`data_sources`**: If missing, default to `["codebase"]`.
+
+This step prevents "Unknown" badges in the HTML report from missing fields.
+
+#### 3.2 — Merge with previous run
+
+Find the latest previous run directory (if this is run N, look for run N-1):
+```bash
+ls -d {BASE_DIR}/marketing-ideation-* 2>/dev/null | sort -t- -k3 -n | tail -2 | head -1
+```
+
+If a previous run exists, read its `marketing-ideation.json`:
+- **If it exists**: load it. Preserve all items whose `status` is not `"pending"` (i.e., keep `"accepted"`, `"dismissed"`, `"created"` items). Remove old `"pending"` items.
+- **If it doesn't exist**: start with an empty preserved list.
+
+For each new idea:
+- Set `status: "pending"`
+- Check if any preserved item has the same `title` AND same `type` as this new idea with `status: "dismissed"`. If so, auto-dismiss the new idea: set `status: "dismissed"`, `dismissed_reason: "previously dismissed"`, `reviewed_at: <current ISO timestamp>`.
+
+Merge: `final_ideas = preserved_items + new_ideas`
+
+#### 3.3 — Generate summary stats
+
+Compute:
+- `total`: total ideas count
+- `by_type`: count per type slug (dash format)
+- `by_status`: count per status (`pending`, `accepted`, `dismissed`, `created`)
+- `by_effort`: count per effort level (`trivial`, `small`, `medium`, `large`, `complex`)
+
+#### 3.4 — Write `marketing-ideation.json`
+
+```json
+{
+  "schema_version": "1.0",
+  "project_name": "<PROJECT_NAME>",
+  "generated_at": "<current ISO 8601 UTC timestamp>",
+  "summary": {
+    "total": <n>,
+    "by_type": { "seo-technical": <n>, "content-strategy": <n>, "growth-tactics": <n>, "brand-positioning": <n> },
+    "by_status": { "pending": <n>, "accepted": <n>, "dismissed": <n>, "created": <n> },
+    "by_effort": { "trivial": <n>, "small": <n>, "medium": <n>, "large": <n>, "complex": <n> }
+  },
+  "ideas": [ ...final_ideas... ]
+}
+```
+
+Write to `{OUTPUT_DIR}/marketing-ideation.json`.
+
+#### 3.5 — Generate HTML report
+
+Find the HTML template:
+```
+Glob("**/bvdr-ideation-and-roadmap/assets/marketing-ideation-report-template.html")
+```
+
+Read the template. Replace `{{MARKETING_IDEATION_DATA}}` with the full JSON content of `marketing-ideation.json`. Include a top-level `"deep_analysis_summary"` key in the data injected into the template with at minimum: `project_name`, `project_type`, `target_audience`, `live_url`, `analytics_data` (full object), `github_metrics` (full object), and `competitors` (full array) — all sourced from `deep-analysis.json`.
+
+**IMPORTANT — JSON sanitization before injection:**
+
+The JSON data will be placed inside a `<script>` tag. Before replacing `{{MARKETING_IDEATION_DATA}}`, sanitize the JSON string:
+1. Replace all backticks (`` ` ``) with single quotes (`'`) — backticks break JS template literals in the template code
+2. Replace all `${` with `{` — `${...}` inside template literals would be interpreted as JS expressions
+3. Replace `</script>` with `<\/script>` — prevents premature script tag closure
+
+Write the result to `{OUTPUT_DIR}/report.html`.
+
+If the template file is not found, skip HTML report generation and log a warning.
+
+#### 3.6 — Open report
+
+Unless `NO_OPEN` flag is set:
+```bash
+open "{OUTPUT_DIR}/report.html"
+```
+
+#### 3.7 — Print terminal summary
+
+Compute "Top 5 Quick Wins": ideas with `status: "pending"`, sorted by effort ascending (`trivial` → `small` → `medium` → `large` → `complex`), take the first 5.
+
+Print:
+```
+=== MARKETING IDEATION COMPLETE ===
+
+Deep Analysis: {github_metrics.stars} stars, {github_metrics.contributors} contributors, {competitors count} competitors analyzed
+Live URL: {live_url or "Not found"}
+Analytics: {analytics_data.source or "Not available"}
+
+Ideas Generated: {total}
+
+  SEO & Technical:     {n} ({trivial: x, small: x, medium: x, large: x, complex: x})
+  Content Strategy:    {n} ({breakdown by effort})
+  Growth Tactics:      {n} ({breakdown by effort})
+  Brand Positioning:   {n} ({breakdown by effort})
+
+Top 5 Quick Wins:
+  1. [{id}] {title} ({estimated_effort})
+  2. [{id}] {title} ({estimated_effort})
+  3. [{id}] {title} ({estimated_effort})
+  4. [{id}] {title} ({estimated_effort})
+  5. [{id}] {title} ({estimated_effort})
+
+Report: .claude/marketing-ideation/marketing-ideation-{RUN_NUMBER}/report.html
+
+Next: Review the report, then run:
+  /ideation-marketing accept <id> [<id>...]     — accept ideas
+  /ideation-marketing dismiss <id> [--reason]   — dismiss ideas
+  /ideation-marketing create-issues             — create GH issues for accepted
+```
+
+Use `"N/A"` for any count that could not be determined (e.g., if marketing-landscape.json was missing).
+
+---
+
+## Resolving the latest run directory (for review subcommands)
+
+The `accept`, `dismiss`, `status`, `create-issues`, and `create-issue` subcommands operate on the **most recent** marketing-ideation run. To find it:
+
+```bash
+ls -d {PROJECT_ROOT}/.claude/marketing-ideation/marketing-ideation-* 2>/dev/null | sort -t- -k3 -n | tail -1
+```
+
+Store the result as `OUTPUT_DIR`. Also derive `BASE_DIR` as the parent directory (i.e., `{PROJECT_ROOT}/.claude/marketing-ideation/`), needed for `issues-tracker.json` access in `status`, `create-issues`, and `create-issue` subcommands.
+
+If no run directory exists, print `"No marketing ideation data found. Run /ideation-marketing first."` and stop.
+
+---
+
+## Subcommand: `accept`
+
+**Args format:** `accept id1 [id2 id3 ...]`
+
+Parse all IDs after the `accept` token.
+
+1. Read `{OUTPUT_DIR}/marketing-ideation.json`
+2. Get current ISO timestamp: `date -u +"%Y-%m-%dT%H:%M:%SZ"`
+3. For each provided ID:
+   - Find the idea in `ideas` array where `id` matches
+   - If found: set `status: "accepted"`, `reviewed_at: <timestamp>`
+   - If not found: log `"Warning: ID {id} not found"`
+4. Write updated `marketing-ideation.json`
+5. Regenerate `report.html` (same process as Phase 3.5 above)
+6. Print: `"Accepted: {id1}, {id2}, ..."`
+
+---
+
+## Subcommand: `dismiss`
+
+**Args format:** `dismiss id [--reason "..."]`
+
+Parse the first non-flag token after `dismiss` as the ID. Parse `--reason "..."` if present.
+
+1. Read `{OUTPUT_DIR}/marketing-ideation.json`
+2. Get current ISO timestamp
+3. Find the idea by ID
+4. If found: set `status: "dismissed"`, `dismissed_reason: <reason or null>`, `reviewed_at: <timestamp>`
+5. If not found: log `"Warning: ID {id} not found"` and stop
+6. Write updated `marketing-ideation.json`
+7. Regenerate `report.html`
+8. Print: `"Dismissed: {id}"` (and reason if provided)
+
+---
+
+## Subcommand: `status`
+
+1. Read `{OUTPUT_DIR}/marketing-ideation.json` — if missing, print `"No marketing ideation data found. Run /ideation-marketing first."` and stop.
+2. Read `{BASE_DIR}/issues-tracker.json` if it exists (for GH issue info). Note: `issues-tracker.json` lives at `{BASE_DIR}` (shared across runs), not in the per-run `OUTPUT_DIR`.
+3. Compute counts by status.
+4. Collect all ideas with `status: "accepted"`.
+
+Print:
+```
+=== MARKETING IDEATION STATUS ===
+
+Total: {n} ideas
+  Pending:   {n}
+  Accepted:  {n}
+  Dismissed: {n}
+  Created:   {n} (GH issues)
+
+Accepted (ready to create issues):
+  [{id}] {title}
+  [{id}] {title}
+  ...
+```
+
+If no accepted ideas: print `"No accepted ideas yet. Use /ideation-marketing accept <id> to accept ideas."` in the Accepted section.
+
+---
+
+## Subcommand: `create-issues`
+
+1. Read `{OUTPUT_DIR}/marketing-ideation.json` — if missing, print error and stop.
+2. Read `{BASE_DIR}/issues-tracker.json` — if missing, initialize as `{}`. Note: tracker lives at `{BASE_DIR}` (shared across runs).
+3. Collect all ideas with `status: "accepted"`.
+4. If none, print: `"No accepted ideas to create issues for. Use /ideation-marketing accept <id> first."` and stop.
+5. Get current ISO timestamp.
+
+For each accepted idea (in order):
+
+**a. Check if already created:**
+If the idea's `id` already exists as a key in `issues-tracker.json`, log: `"Skipping {id} — issue already created: #{number}"` and skip.
+
+**b. Create GH issue:**
+
+Build the body:
+```markdown
+## {title}
+
+{description}
+
+### Rationale
+{rationale}
+
+### Data Sources
+{for each source in data_sources: - {source}}
+
+### Estimated Effort
+{estimated_effort}
+
+### Affected Files
+{for each file in affected_files: - `{file}`}
+{if affected_files is empty: _Strategy idea — no specific files_}
+
+### Related Issues
+{for each item in related_issues: - #{number} — {relationship}: {title}}
+{if related_issues is empty: _None_}
+
+---
+*Generated by [bvdr-ideation-and-roadmap](https://github.com/bvdr/claude-plugins) plugin*
+*Source: {type} marketing ideation — {id}*
+```
+
+Run:
+```bash
+gh issue create \
+  --title "{title}" \
+  --body "{body}" \
+  --label "{type},marketing-ideation"
+```
+
+If the label doesn't exist, `gh` will create it. If `gh` returns an error, log the error, mark the idea as `"gh_error": "<error message>"`, and continue to the next idea.
+
+**c. Update state after successful creation:**
+- Parse the returned URL to extract the issue number
+- Set `idea.status = "created"`, `idea.gh_issue = { "number": <n>, "url": "<url>" }`, `idea.created_issue_at = <timestamp>`
+- Add to tracker: `issues-tracker[idea.id] = { "idea_id": idea.id, "gh_issue_number": <n>, "gh_issue_url": "<url>", "created_at": <timestamp> }`
+
+6. Write updated `marketing-ideation.json`
+7. Write updated `{BASE_DIR}/issues-tracker.json`
+8. Regenerate `report.html`
+
+9. Print summary:
+```
+=== ISSUES CREATED ===
+
+Created:
+  [{id}] {title} → #{number} {url}
+  ...
+
+Skipped (already created):
+  [{id}] {title} → #{number}
+  ...
+
+Failed:
+  [{id}] {title} → {error}
+  ...
+```
+
+---
+
+## Subcommand: `create-issue`
+
+**Args format:** `create-issue id`
+
+Parse the ID after the `create-issue` token.
+
+1. Read `{OUTPUT_DIR}/marketing-ideation.json` — if missing, print error and stop.
+2. Read `{BASE_DIR}/issues-tracker.json` — if missing, initialize as `{}`.
+3. Find the idea by ID.
+4. If not found: print `"Error: ID {id} not found in marketing-ideation.json"` and stop.
+5. If `status` is not `"accepted"`: print `"Error: Idea {id} is not accepted (status: {status}). Run /ideation-marketing accept {id} first."` and stop.
+6. Check tracker — if already created, print `"Issue already created: #{number} {url}"` and stop.
+7. Create the issue using the same body format and `gh issue create` command as in `create-issues`.
+8. Update `marketing-ideation.json`, `{BASE_DIR}/issues-tracker.json`, regenerate `report.html`.
+9. Print: `"Created: [{id}] {title} → #{number} {url}"`
+
+---
+
+## Error Handling Rules
+
+These rules apply throughout all subcommands:
+
+1. **`marketing-ideation.json` missing**: For `accept`, `dismiss`, `status`, `create-issues`, `create-issue` — print `"No marketing ideation data found. Run /ideation-marketing first."` and stop.
+2. **Agent file not found**: Log warning, skip that type. Continue with remaining types.
+3. **Agent returns no output file**: Log warning for that type. Continue with Phase 3 using whatever files are available.
+4. **JSON parse error on any agent output**: Log warning, skip that file.
+5. **`deep-analysis.json` write fails**: Log error and continue to Phase 2 with whatever partial data was gathered. Write deep-analysis.json with whatever is available.
+6. **`gh` not available**: For `create-issues`/`create-issue` — print `"Error: gh CLI not available or not authenticated. Run 'gh auth login' first."` and stop.
+7. **`report.html` template not found**: Skip HTML report, log warning. Terminal output is always produced regardless.
+8. **`open` command fails (non-macOS)**: Silently ignore. Report path is printed in terminal summary.
+9. **Partial Phase 1 failure**: If one context agent fails, continue with the others. Merge whatever JSON files were successfully created.
+10. **ID not found in `accept`/`dismiss`**: Log warning and skip that ID. Continue processing remaining IDs.
+11. **No live URL found**: Record as a finding in `live-analysis.json`, skip web analysis, continue with social/community signals.
+12. **Analytics unavailable**: Set `access_method: "none"`, continue. Specialist agents work without analytics data — ideas are less data-informed but still valid.
+13. **No git repo**: Skip git-related analysis in project-understanding, continue with codebase scan and web analysis.
+14. **No GitHub remote or no `gh`**: Skip PR/issue analysis in project-understanding, log warning.
+15. **`--skip-live` set**: Skip both `marketing-landscape.md` and `live-analysis.md` agents entirely. Set corresponding fields in `deep-analysis.json` to `null`.
+
+---
+
+## Execution Checklist
+
+Before starting `run`, mentally verify:
+
+- [ ] Step 0: Args parsed, subcommand identified, flags set (FILTER_TYPES, FORCE_REFRESH, NO_OPEN, SKIP_LIVE)
+- [ ] Phase 0: PROJECT_ROOT detected, BASE_DIR created, RUN_DIR computed (marketing-ideation-N auto-increment), .gitignore and Readme.txt written, deep-analysis cache checked in BASE_DIR
+- [ ] Phase 1: 3 marketing context agents dispatched sequentially (skip marketing-landscape + live-analysis if --skip-live), outputs merged into deep-analysis.json in BASE_DIR (skip entire phase if cached)
+- [ ] Phase 2: Marketing agent files located, placeholders replaced (DEEP_ANALYSIS_PATH → BASE_DIR, OUTPUT_DIR → RUN_DIR), all agents dispatched in parallel in a single message
+- [ ] Phase 3.1: All 4 type output files read from RUN_DIR
+- [ ] Phase 3.1b: Field normalization applied (estimated_effort, affected_files, type dashes→underscores, status, data_sources)
+- [ ] Phase 3.2: Previous run's marketing-ideation.json merged (preserving non-pending), auto-dismissal applied
+- [ ] Phase 3.3: Summary stats computed
+- [ ] Phase 3.4: marketing-ideation.json written to RUN_DIR
+- [ ] Phase 3.5: HTML report generated with {{MARKETING_IDEATION_DATA}} placeholder, deep_analysis_summary includes target_audience/live_url/analytics_data/github_metrics/competitors, JSON sanitized (backticks, template literals, script tags)
+- [ ] Phase 3.6: Report opened (unless --no-open)
+- [ ] Phase 3.7: Terminal summary printed with RUN_DIR path, github_metrics.stars, competitors count, live_url, analytics source
+
+Now execute. Start with Step 0.
