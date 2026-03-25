@@ -1,6 +1,6 @@
 # bvdr-ideation-and-roadmap
 
-AI-powered project ideation and roadmap generation for Claude Code. Run `/ideation` to surface improvement ideas across 6 analysis types, or `/roadmap` to generate a prioritized feature roadmap — both backed by deep codebase analysis, competitive research, and interactive HTML reports.
+AI-powered project ideation, marketing audit, and roadmap generation for Claude Code. Run `/ideation` to surface improvement ideas across 6 analysis types, `/ideation-marketing` to perform a full marketing audit across 4 domains, or `/roadmap` to generate a prioritized feature roadmap — all backed by deep codebase analysis, competitive research, and interactive HTML reports.
 
 ## What It Does
 
@@ -18,6 +18,19 @@ Dispatches parallel subagents to analyze your codebase across 6 dimensions and s
 | `sec` | security | OWASP-aligned findings, dependency vulnerabilities, auth and input handling |
 | `perf` | performance | Slow queries, N+1 patterns, asset loading, memory hotspots, caching gaps |
 | `ux` | ui-ux | Accessibility issues, interaction patterns, error messaging, visual consistency |
+
+### /ideation-marketing
+
+Performs a full marketing audit of your project — combining technical SEO analysis, content strategy, growth tactics, and brand positioning into an interactive HTML report. Integrates with analytics tools (via CLI or MCP) and analyzes your live URL for SEO signals.
+
+**4 Marketing Analysis Types:**
+
+| Alias | Full Name | What It Covers |
+|-------|-----------|----------------|
+| `seo` | seo-technical | Meta tags, Open Graph, structured data, sitemap, crawlability |
+| `content` | content-strategy | Blog topics, tutorials, case studies, content calendar |
+| `growth` | growth-tactics | Onboarding, referrals, community, launch strategies |
+| `brand` | brand-positioning | Messaging, differentiation, value prop, audience |
 
 ### /roadmap
 
@@ -68,6 +81,43 @@ claude plugin install bvdr-ideation-and-roadmap
 
 # Push to GitHub
 /ideation create-issues
+```
+
+---
+
+### /ideation-marketing
+
+```
+/ideation-marketing                              — run all 4 marketing analysis types
+/ideation-marketing --only type1,type2           — run specific types (aliases: seo, content, growth, brand)
+/ideation-marketing --refresh                    — force re-run deep analysis (ignores cached discovery)
+/ideation-marketing --skip-live                  — skip live URL & marketing landscape analysis (offline/CI use)
+/ideation-marketing --no-open                    — don't auto-open HTML report after generation
+/ideation-marketing help                         — show usage
+
+/ideation-marketing accept id1 id2 ...           — mark ideas as accepted
+/ideation-marketing dismiss id [--reason "..."]  — mark idea as dismissed with optional reason
+/ideation-marketing status                       — show review summary
+/ideation-marketing create-issues                — create GitHub issues for all accepted ideas
+/ideation-marketing create-issue id              — create a single GitHub issue for one idea
+```
+
+**Examples:**
+
+```bash
+# Run only SEO and content strategy analysis
+/ideation-marketing --only seo,content
+
+# Run without live URL analysis (offline mode)
+/ideation-marketing --skip-live
+
+# Review ideas
+/ideation-marketing status
+/ideation-marketing accept mkt-seo-001 mkt-content-003
+/ideation-marketing dismiss mkt-growth-005 --reason "not applicable to B2B"
+
+# Push to GitHub
+/ideation-marketing create-issues
 ```
 
 ---
@@ -124,13 +174,24 @@ Discovery results are cached in `.claude/ideation/discovery.json` and `.claude/r
 ```
 .claude/
   ideation/
-    discovery.json       — cached codebase + competitive analysis
-    ideas.json           — all generated ideas with IDs and status
-    report.html          — interactive HTML report
+    deep-analysis.json                    — cached codebase + competitive analysis
+    ideation-N/
+      ideation.json                       — all generated ideas with IDs and status
+      report.html                         — interactive HTML report
+  marketing-ideation/
+    deep-analysis.json                    — cached marketing context analysis
+    issues-tracker.json                   — maps ideas to GH issues (shared across runs)
+    marketing-ideation-N/
+      marketing-ideation.json             — all generated marketing ideas with IDs and status
+      report.html                         — interactive HTML report
+      seo_technical_ideas.json            — SEO agent output
+      content_strategy_ideas.json         — content agent output
+      growth_tactics_ideas.json           — growth agent output
+      brand_positioning_ideas.json        — brand agent output
   roadmap/
-    discovery.json       — cached codebase + competitive analysis
-    features.json        — all generated features with IDs and status
-    report.html          — interactive HTML report
+    discovery.json                        — cached codebase + competitive analysis
+    features.json                         — all generated features with IDs and status
+    report.html                           — interactive HTML report
 ```
 
 ### HTML Reports
