@@ -153,7 +153,7 @@ Write your findings to `{OUTPUT_DIR}/brand_positioning_ideas.json`:
       ],
       "status": "draft",
       "created_at": "ISO timestamp",
-      "data_sources": ["codebase", "competitive-research", "community-sentiment", "github-metrics"]
+      "data_sources": ["codebase", "competitive-research", "live-scan"]
     }
   ],
   "metadata": {
@@ -178,14 +178,12 @@ Write your findings to `{OUTPUT_DIR}/brand_positioning_ideas.json`:
 
 ## Data Sources Reference
 
-When populating the `data_sources` array on each idea, use these canonical values:
+When populating the `data_sources` array on each idea, use ONLY these 4 canonical values:
 
-- `codebase` — derived from reading source files, README, or config directly
-- `competitive-research` — derived from `competitors` in deep-analysis.json
-- `market-gaps` — derived from `market_gaps` in deep-analysis.json
-- `community-sentiment` — derived from `community_mentions` in deep-analysis.json
-- `github-metrics` — derived from `github_metrics` in deep-analysis.json
-- `open-issues` — derived from `open_issues` in deep-analysis.json
+- `"codebase"` — derived from reading source files, README, config, git history, GitHub metrics, or open issues
+- `"competitive-research"` — derived from `competitors`, `market_gaps`, or `keyword_opportunities` in deep-analysis.json
+- `"analytics"` — derived from `analytics_data.metrics` (unique_visitors, referral_sources, etc.)
+- `"live-scan"` — derived from `seo_signals`, `social_presence`, or `community_mentions` in deep-analysis.json
 
 ---
 

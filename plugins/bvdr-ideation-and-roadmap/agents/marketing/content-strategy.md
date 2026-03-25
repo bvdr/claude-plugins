@@ -190,14 +190,12 @@ Write `{OUTPUT_DIR}/content_strategy_ideas.json`:
 
 ## Data Sources Field
 
-Each idea's `data_sources` array must include the actual signals used. Valid values:
+Each idea's `data_sources` array must include the actual signals used. Use ONLY these 4 canonical values:
 
-- `"codebase"` — idea derived from README, source files, or project structure
-- `"competitive-research"` — idea derived from `competitive_analysis`, `content_patterns`, or `market_gaps`
-- `"git-history"` — idea derived from `recent_highlights` or `direction.recently_shipped`
-- `"open-issues"` — idea derived from `open_issues` in deep-analysis
-- `"analytics"` — idea derived from `analytics_data.metrics.top_pages`
-- `"public-assets"` — idea derived from `public_assets` fields (docs_site, blog, changelog, social_links)
+- `"codebase"` — idea derived from README, source files, project structure, git history, open issues, or public assets
+- `"competitive-research"` — idea derived from `competitors`, `content_patterns`, `market_gaps`, or `keyword_opportunities` in deep-analysis.json
+- `"analytics"` — idea derived from `analytics_data.metrics` (top_pages, search_queries, referral_sources, etc.)
+- `"live-scan"` — idea derived from `seo_signals`, `social_presence`, or `community_mentions` in deep-analysis.json
 
 ---
 
