@@ -308,6 +308,15 @@ html.dark .quick-wins-header:hover {
 .quick-wins-header.open {
   border-bottom-color: var(--border);
 }
+.quick-wins-header .chevron {
+  transition: transform 0.2s;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+.quick-wins-header.open .chevron {
+  transform: rotate(90deg);
+}
 .quick-wins-title {
   display: flex;
   align-items: center;
