@@ -131,6 +131,7 @@ A collection of Claude Code skills for macOS productivity and Slack integration.
 | Setup Statusline | `/bvdr:setup-statusline` | Interactive wizard to configure a custom Claude Code statusline (folder display, git info, colors) |
 | Setup Slack Notifications | `/bvdr:setup-slack-notifications` | Interactive setup wizard for creating a Slack bot and configuring your environment |
 | Send Slack Notification | `/bvdr:send-slack-notification` | Send rich Slack messages with Block Kit formatting (text, code blocks, headers, status updates) |
+| Gemini Evaluate | `/bvdr:evaluate` | Get a second opinion from Google's Gemini 3.1 Pro on Claude's last output |
 
 **Platform:** macOS | **Requires:** `jq`, `git` (optional for statusline)
 
