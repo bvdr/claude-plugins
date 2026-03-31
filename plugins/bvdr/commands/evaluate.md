@@ -10,7 +10,7 @@ Get an independent evaluation of Claude's last output from Google's Gemini.
 
 1. Run `echo $GEMINI_API_KEY` in Bash
 2. If empty, tell the user:
-   > `GEMINI_API_KEY` is not set. Get one at https://aistudio.google.com/apikey and add to `~/.zshrc`:
+   > `GEMINI_API_KEY` is not set. Get one at https://aistudio.google.com/apikey and add to your shell config (`~/.zshrc`, `~/.bashrc`, etc.):
    > ```
    > export GEMINI_API_KEY="your-key-here"
    > ```
@@ -24,12 +24,36 @@ Determine the content to evaluate:
 - **If the user provided specific context** (e.g. `/evaluate this plan` or `/evaluate the migration approach`) — use that specific content from the conversation
 - **Otherwise** — use YOUR (Claude's) last full assistant message before this skill was invoked
 
-Write the content to `/tmp/gemini-eval-content.txt` using Bash. Use a heredoc with a unique delimiter to handle special characters:
+**IMPORTANT:** Always include BOTH the user's original request AND your response. Gemini cannot evaluate an answer without knowing the question. Format it as:
+
+```
+USER REQUEST:
+<the user's message that prompted your response>
+
+ASSISTANT RESPONSE:
+<your response being evaluated>
+```
+
+Write the content to `/tmp/gemini-eval-content.txt` using python3 (NOT a bash heredoc — heredocs break if the content contains the delimiter string):
 
 ```bash
-cat > /tmp/gemini-eval-content.txt << 'GEMINI_EVAL_CONTENT_EOF'
-<paste the content here>
-GEMINI_EVAL_CONTENT_EOF
+python3 -c "
+import sys
+content = sys.stdin.read()
+with open('/tmp/gemini-eval-content.txt', 'w') as f:
+    f.write(content)
+" << 'EVAL_INPUT_PY'
+<paste the user request + assistant response here>
+EVAL_INPUT_PY
+```
+
+If the content itself contains `EVAL_INPUT_PY`, use python3 to write the file directly instead:
+
+```bash
+python3 -c "
+with open('/tmp/gemini-eval-content.txt', 'w') as f:
+    f.write('''<content here, triple-quote escaped>''')
+"
 ```
 
 ## Build the Evaluation Prompt
@@ -125,12 +149,20 @@ rm -f /tmp/gemini-eval-content.txt /tmp/gemini-eval-prompt.txt
 
 ## Present Results
 
-Show the response under a clear header:
+**Always show the full Gemini response to the user.** Present it under a clear header:
 
 ```
 ## Gemini Evaluation (model: <model_used>)
 
-<gemini's response>
+<gemini's full response — do NOT summarize or truncate>
 ```
 
-If Gemini's evaluation raises valid concerns, briefly acknowledge which points you agree with and which you'd push back on — don't just relay the response passively.
+Then add your own take below:
+
+```
+## Claude's Response to Evaluation
+
+<For each point Gemini raised, state whether you agree or push back, and why. Be specific.>
+```
+
+Do NOT just relay the response passively — engage with it critically.
