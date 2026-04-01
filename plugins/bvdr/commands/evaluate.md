@@ -34,35 +34,44 @@ ASSISTANT RESPONSE:
 <your response being evaluated>
 ```
 
-Write the content to `/tmp/gemini-eval-content.txt` using python3 (NOT a bash heredoc — heredocs break if the content contains the delimiter string):
+Write the content to `/tmp/gemini-eval-content.json` as a JSON file using Node. This avoids all escaping issues:
 
 ```bash
-python3 -c "
-import sys
-content = sys.stdin.read()
-with open('/tmp/gemini-eval-content.txt', 'w') as f:
-    f.write(content)
-" << 'EVAL_INPUT_PY'
+node -e "
+const fs = require('fs');
+const content = fs.readFileSync('/dev/stdin', 'utf8');
+fs.writeFileSync('/tmp/gemini-eval-content.json', JSON.stringify(content));
+" << 'EVAL_INPUT_END'
 <paste the user request + assistant response here>
-EVAL_INPUT_PY
+EVAL_INPUT_END
 ```
 
-If the content itself contains `EVAL_INPUT_PY`, use python3 to write the file directly instead:
+If the content contains `EVAL_INPUT_END`, use Node to write it directly:
 
 ```bash
-python3 -c "
-with open('/tmp/gemini-eval-content.txt', 'w') as f:
-    f.write('''<content here, triple-quote escaped>''')
+node -e "
+const fs = require('fs');
+fs.writeFileSync('/tmp/gemini-eval-content.json', JSON.stringify(\`<content here, backtick escaped>\`));
 "
 ```
 
-## Build the Evaluation Prompt
+## Call Gemini API
 
-Write the system prompt + content to `/tmp/gemini-eval-prompt.txt`:
+Run this Node script. It builds the prompt, calls the API, and writes the raw response to `/tmp/gemini-eval-response.md`:
 
 ```bash
-cat > /tmp/gemini-eval-prompt.txt << 'GEMINI_EVAL_PROMPT_EOF'
-You are an expert technical reviewer providing a second opinion on AI-generated output.
+node -e "
+const https = require('https');
+const fs = require('fs');
+
+const apiKey = process.env.GEMINI_API_KEY || '';
+const model = process.env.GEMINI_MODEL || 'gemini-3.1-pro-preview';
+
+if (!apiKey) { console.error('Error: GEMINI_API_KEY not set'); process.exit(1); }
+
+const content = JSON.parse(fs.readFileSync('/tmp/gemini-eval-content.json', 'utf8'));
+
+const systemPrompt = \`You are an expert technical reviewer providing a second opinion on AI-generated output.
 
 Evaluate the following content critically and constructively. Cover:
 
@@ -78,91 +87,76 @@ Be direct. If it's good, say so briefly and focus on what could be better. If it
 
 CONTENT TO EVALUATE:
 
-<content from /tmp/gemini-eval-content.txt will be appended here by the script>
-GEMINI_EVAL_PROMPT_EOF
-```
+\` + content;
 
-## Call Gemini API
+const payload = JSON.stringify({
+  contents: [{ parts: [{ text: systemPrompt }] }],
+  generationConfig: { temperature: 0.7, maxOutputTokens: 8192 }
+});
 
-Run this python3 script to make the API call. It handles JSON escaping properly:
+const url = new URL(\`https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}\`);
 
-```bash
-python3 << 'PYEOF'
-import json, urllib.request, urllib.error, os, sys
-
-api_key = os.environ.get("GEMINI_API_KEY", "")
-model = os.environ.get("GEMINI_MODEL", "gemini-3.1-pro-preview")
-
-if not api_key:
-    print("Error: GEMINI_API_KEY not set", file=sys.stderr)
-    sys.exit(1)
-
-# Read the prompt and content
-with open("/tmp/gemini-eval-prompt.txt") as f:
-    prompt = f.read()
-with open("/tmp/gemini-eval-content.txt") as f:
-    content = f.read()
-
-full_prompt = prompt + "\n" + content
-
-payload = json.dumps({
-    "contents": [{"parts": [{"text": full_prompt}]}],
-    "generationConfig": {
-        "temperature": 0.7,
-        "maxOutputTokens": 8192
+const req = https.request({
+  hostname: url.hostname,
+  path: url.pathname + url.search,
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(payload) }
+}, (res) => {
+  let body = '';
+  res.on('data', (chunk) => body += chunk);
+  res.on('end', () => {
+    try {
+      const result = JSON.parse(body);
+      if (result.error) {
+        console.error('Gemini API error: ' + result.error.message);
+        process.exit(1);
+      }
+      const text = result.candidates[0].content.parts[0].text;
+      fs.writeFileSync('/tmp/gemini-eval-response.md', text);
+      console.log('Gemini response saved to /tmp/gemini-eval-response.md');
+    } catch (e) {
+      console.error('Failed to parse response: ' + body.slice(0, 500));
+      process.exit(1);
     }
-})
-
-url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
-req = urllib.request.Request(
-    url,
-    data=payload.encode("utf-8"),
-    headers={"Content-Type": "application/json"},
-    method="POST"
-)
-
-try:
-    with urllib.request.urlopen(req, timeout=120) as resp:
-        result = json.loads(resp.read().decode("utf-8"))
-    text = result["candidates"][0]["content"]["parts"][0]["text"]
-    print(text)
-except urllib.error.HTTPError as e:
-    body = e.read().decode("utf-8")
-    try:
-        err = json.loads(body)
-        msg = err.get("error", {}).get("message", body)
-    except json.JSONDecodeError:
-        msg = body
-    print(f"Gemini API error ({e.code}): {msg}", file=sys.stderr)
-    sys.exit(1)
-except Exception as e:
-    print(f"Error: {e}", file=sys.stderr)
-    sys.exit(1)
-PYEOF
+  });
+});
+req.on('error', (e) => { console.error('Request failed: ' + e.message); process.exit(1); });
+req.setTimeout(120000, () => { req.destroy(); console.error('Request timed out'); process.exit(1); });
+req.write(payload);
+req.end();
+"
 ```
 
-## Cleanup
+## Read and Display the Response
+
+After the API call succeeds, read `/tmp/gemini-eval-response.md` using the **Read** tool and output its ENTIRE contents to the user verbatim.
+
+Then clean up:
 
 ```bash
-rm -f /tmp/gemini-eval-content.txt /tmp/gemini-eval-prompt.txt
+rm -f /tmp/gemini-eval-content.json /tmp/gemini-eval-response.md
 ```
 
 ## Present Results
 
-**Always show the full Gemini response to the user.** Present it under a clear header:
+**CRITICAL:** The user MUST see Gemini's actual words. Follow this exact order:
+
+### Step 1 — Show Gemini's raw response
+
+Output the ENTIRE content of `/tmp/gemini-eval-response.md` verbatim under this header. Copy-paste it exactly as-is. Do NOT summarize, paraphrase, shorten, or interpret it:
 
 ```
 ## Gemini Evaluation (model: <model_used>)
 
-<gemini's full response — do NOT summarize or truncate>
+<FULL verbatim content from /tmp/gemini-eval-response.md — every single line>
 ```
 
-Then add your own take below:
+### Step 2 — Add your take
+
+Only AFTER showing the full response above, add your own section:
 
 ```
 ## Claude's Response to Evaluation
 
 <For each point Gemini raised, state whether you agree or push back, and why. Be specific.>
 ```
-
-Do NOT just relay the response passively — engage with it critically.
