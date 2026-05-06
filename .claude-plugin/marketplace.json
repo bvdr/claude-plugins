@@ -10,7 +10,7 @@
       "name": "bvdr",
       "source": "./plugins/bvdr",
       "description": "Claude Code skills collection: Umami Analytics, Slack notifications, statusline setup, voice alerts, Gemini evaluation, and more",
-      "version": "1.2.0"
+      "version": "1.2.1"
     },
     {
       "name": "bvdr-interactive-notifications",

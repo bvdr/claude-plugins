@@ -15,7 +15,7 @@ Get an independent evaluation of Claude's last output from Google's Gemini.
    > export GEMINI_API_KEY="your-key-here"
    > ```
    Then stop.
-3. Optionally check `echo $GEMINI_MODEL` — defaults to `gemini-3.1-pro-preview` if unset. User can override with any model name.
+3. Optionally check `echo $GEMINI_MODEL` — defaults to `gemini-pro-latest` (always points to the latest stable Gemini Pro). User can override with any model name (e.g. `gemini-3.1-pro-preview`, `gemini-2.5-pro`, `gemini-flash-latest`).
 
 ## What to Evaluate
 
@@ -65,7 +65,7 @@ const https = require('https');
 const fs = require('fs');
 
 const apiKey = process.env.GEMINI_API_KEY || '';
-const model = process.env.GEMINI_MODEL || 'gemini-3.1-pro-preview';
+const model = process.env.GEMINI_MODEL || 'gemini-pro-latest';
 
 if (!apiKey) { console.error('Error: GEMINI_API_KEY not set'); process.exit(1); }
 
@@ -91,7 +91,7 @@ CONTENT TO EVALUATE:
 
 const payload = JSON.stringify({
   contents: [{ parts: [{ text: systemPrompt }] }],
-  generationConfig: { temperature: 0.7, maxOutputTokens: 8192 }
+  generationConfig: { temperature: 0.7, maxOutputTokens: 32768 }
 });
 
 const url = new URL(\`https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}\`);
@@ -109,11 +109,22 @@ const req = https.request({
       const result = JSON.parse(body);
       if (result.error) {
         console.error('Gemini API error: ' + result.error.message);
+        console.error('Tip: set GEMINI_MODEL to a current model like gemini-pro-latest or gemini-flash-latest.');
         process.exit(1);
       }
-      const text = result.candidates[0].content.parts[0].text;
+      const candidate = result.candidates && result.candidates[0];
+      const text = candidate && candidate.content && candidate.content.parts && candidate.content.parts[0] && candidate.content.parts[0].text;
+      if (!text) {
+        const reason = candidate && candidate.finishReason;
+        if (reason === 'MAX_TOKENS') {
+          console.error('Gemini hit MAX_TOKENS before producing output (likely all tokens consumed by thinking). Increase maxOutputTokens or use a non-thinking model like gemini-flash-latest.');
+        } else {
+          console.error('Gemini returned no text. finishReason=' + reason + '. Raw: ' + body.slice(0, 500));
+        }
+        process.exit(1);
+      }
       fs.writeFileSync('/tmp/gemini-eval-response.md', text);
-      console.log('Gemini response saved to /tmp/gemini-eval-response.md');
+      console.log('Gemini response saved to /tmp/gemini-eval-response.md (model: ' + (result.modelVersion || model) + ')');
     } catch (e) {
       console.error('Failed to parse response: ' + body.slice(0, 500));
       process.exit(1);
