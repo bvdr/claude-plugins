@@ -104,17 +104,34 @@ wc -c < ~/.config/cmux-control/events.log > ~/.config/cmux-control/cursor
 
 The watcher writes events to `events.log`, but without a Monitor watching that file the orchestrator only sees them when the user types something. To actually listen in real-time, arm a Monitor on the file with a filter that covers actionable events:
 
+Build the filter command from `state.json`'s `monitored_sessions` so the Monitor only wakes you on workspaces the user picked. The events.log keeps recording all workspaces; the Monitor's grep narrows what reaches the orchestrator's chat.
+
+```bash
+# pseudocode for filter assembly
+EVENTS=~/.config/cmux-control/events.log
+NAMES=$(jq -r '.monitored_sessions[].workspace_name' ~/.config/cmux-control/state.json)
+# Strategy: extract a stable substring from each name (typically the project codename
+# after the emoji) so partial matches are robust to title tweaks. E.g. "🎨 Folio - Auto Schedule" -> "Folio".
+# Build an alternation: Folio|Project-X|...
+FILTER=$(echo "$NAMES" | python3 -c "import sys,re; names=[l.strip() for l in sys.stdin if l.strip()]; print('|'.join(re.sub(r'^[^A-Za-z]+', '', n).split(' ')[0] for n in names))")
+# Final command:
+echo "tail -F $EVENTS | grep --line-buffered -E 'IDLE|DECISION_NEEDED|DONE' | grep --line-buffered -E \"$FILTER\""
+```
+
+Then call:
+
 ```python
-# pseudo-Skill-tool call
 Monitor({
-  description: "cmux-control: actionable events from monitored sub-agents",
-  command: "tail -F /Users/<USER>/.config/cmux-control/events.log | grep --line-buffered -E 'IDLE|DECISION_NEEDED|DONE'",
+  description: "cmux-control: actionable events from monitored workspaces",
+  command: <the assembled command>,
   persistent: true,
   timeout_ms: 3600000
 })
 ```
 
-Use `os.path.expanduser('~')` or shell `$HOME` — never hardcode the user path. Each new line in events.log that matches the filter becomes a `<task-notification>` that wakes the orchestrator turn — this is what makes "actively listening" real.
+Use `os.path.expanduser('~')` or shell `$HOME` — never hardcode the user path. Each new line that passes both grep stages becomes a `<task-notification>` that wakes the orchestrator turn — this is what makes "actively listening" real, scoped to the user's chosen workspaces.
+
+If `monitored_sessions` is empty (user picked "None"), still arm the Monitor but with only the kind filter (`IDLE|DECISION_NEEDED|DONE`) — the user said they'd name workspaces later; treat all-events as the safe default.
 
 Before arming, call `TaskList` and skip if a Monitor with the same description is already running (re-running `/control` shouldn't double-arm).
 
