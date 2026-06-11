@@ -132,6 +132,7 @@ A collection of Claude Code skills for macOS productivity and Slack integration.
 | Setup Slack Notifications | `/bvdr:setup-slack-notifications` | Interactive setup wizard for creating a Slack bot and configuring your environment |
 | Send Slack Notification | `/bvdr:send-slack-notification` | Send rich Slack messages with Block Kit formatting (text, code blocks, headers, status updates) |
 | Gemini Evaluate | `/bvdr:evaluate` | Get a second opinion from Google's Gemini Pro (uses `gemini-pro-latest` alias) on Claude's last output |
+| Proof-Driven Development | `/bvdr:proof-driven-development` | Workflow for ambiguous, high-stakes tasks: assess → proof-tagged assumptions → testable goal → TDD plan → subagent build with two-stage review → live end-to-end proof → honest gap flags |
 
 **Platform:** macOS | **Requires:** `jq`, `git` (optional for statusline)
 
