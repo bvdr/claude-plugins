@@ -252,8 +252,8 @@ end tell
     echo "$(date): User reply: $REPLY_TEXT" >> "$LOG_FILE"
 
     if [[ "$REPLY_TEXT" == "TIMEOUT" ]] || [[ "$REPLY_TEXT" == "CANCELLED" ]] || [[ -z "$REPLY_TEXT" ]]; then
-        # Fall back to terminal
-        echo '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"ask"}}}'
+        # Fall back to terminal prompt (no output = default permission dialog)
+        exit 0
     else
         # Escape the reply for JSON
         REPLY_ESCAPED=$(echo "$REPLY_TEXT" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\n/\\n/g')
@@ -273,9 +273,8 @@ elif [[ "$RESULT" == *"No"* ]]; then
     echo "$(date): HOOK $HOOK_ID - Returning deny" >> "$DEBUG_LOG"
     echo '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"deny","message":"User denied via dialog"}}}'
 else
-    # Timeout or error - fall back to terminal prompt
-    echo "$(date): HOOK $HOOK_ID - Returning ask (fallback)" >> "$DEBUG_LOG"
-    echo '{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"ask"}}}'
+    # Timeout or error - fall back to terminal prompt (no output = default permission dialog)
+    echo "$(date): HOOK $HOOK_ID - Falling back to terminal (timeout/error)" >> "$DEBUG_LOG"
 fi
 
 echo "$(date): HOOK $HOOK_ID - COMPLETE" >> "$DEBUG_LOG"
